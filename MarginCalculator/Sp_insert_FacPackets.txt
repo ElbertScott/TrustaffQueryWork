@@ -1,0 +1,69 @@
+USE [Trustaff_Med]
+GO
+/****** Object:  StoredProcedure [dbo].[SP_Insert_FacPackets]    Script Date: 12/18/2020 12:12:52 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROCEDURE [dbo].[SP_Insert_FacPackets]
+@CandidateID		INT,
+@requestID			INT,
+@PacketID			INT,
+@FacilityID			INT,
+@Submitstatus		INT, 
+@trustaffCompany_ID	INT,
+@CathLab			BIT,
+@gi					BIT,
+@ms					BIT,
+@dialysis			BIT,
+@psyc				BIT,
+@icu				BIT,
+@ed					BIT,
+@landd				BIT,
+@nicu				BIT,
+@onc				BIT,
+@pacu				BIT,
+@peds				BIT,
+@tele				BIT,
+@picu				BIT,
+@or1				BIT,
+@lpn				BIT,
+@ltc				BIT,
+@RegistryPrivateID  NVARCHAR(255),
+@sclForms			NVARCHAR(255),
+@BestContact		NVARCHAR(255),
+@Specialty			NVARCHAR(255),
+@ShiftPref			NVARCHAR(255)=NULL,
+@DateStart			NVARCHAR(255),
+@AssignTerm			NVARCHAR(255),
+@TimeOff			NVARCHAR(255) =NULL,
+@Cancelled			NVARCHAR(255),
+@Fired				NVARCHAR(255),
+@Other				NVARCHAR(255) = NULL,
+@Notes				NVARCHAR(MAX) = NULL,
+@Comment			NVARCHAR(MAX) = NULL,
+@ShiftOther			NVARCHAR(255) = NULL,
+@TermOther			NVARCHAR(255) = NULL,
+@Old				NVARCHAR(255) = NULL,
+@OtherContact		NVARCHAR(255) = NULL,
+@InterviewTime		NVARCHAR(255),
+@SwatRecId			INT = 0
+AS
+BEGIN
+SET NOCOUNT ON;
+
+		BEGIN TRAN
+	INSERT INTO 
+			FacPackets(submitStatus, CandidateID, RequestID, BestContact, Specialty, ShiftPref, DateStart, AssignTerm, TimeOff,OtherContact,
+            Comment, PacketID, FacilityID, Cancelled, Fired, Other, Notes, ShiftOther, TermOther, Old, CathLab, gi, ms, dialysis,
+            psyc, icu, ed, landd, nicu, onc, pacu, peds, tele, picu, or1, lpn, ltc, RegistryPrivateID, sclForms, trustaffCompany_ID,InterviewTime,Swatrecid)
+     VALUES
+           (@Submitstatus,@CandidateID ,@requestID ,@BestContact,@Specialty,@ShiftPref,@DateStart,@AssignTerm, @TimeOff,@OtherContact,
+            @Comment,@PacketID,@FacilityID,@Cancelled,@Fired,@Other,@Notes,@ShiftOther,@TermOther,@Old,@CathLab,@gi,@ms,@dialysis,
+			@psyc,@icu,@ed,@landd,@nicu,@onc,@pacu,@peds,@tele,@picu,@or1,@lpn,@ltc,@RegistryPrivateID,@sclForms,@trustaffCompany_ID,@InterviewTime,@SwatRecId)			
+		COMMIT
+		
+				
+END
+

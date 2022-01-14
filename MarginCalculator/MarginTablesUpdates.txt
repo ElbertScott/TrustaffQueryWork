@@ -1,0 +1,383 @@
+ Public Function Updatesavedmargin(maringRecord As MarginRecord) As Boolean
+        Dim Success As Boolean
+        Dim FacilityOffer As New FacilityOfferMarginrates()
+        FacilityOffer.Offerid = maringRecord.intOfferID
+        FacilityOffer = GetOfferRatesByOfferId(FacilityOffer)
+        Try
+            Sql = "UPDATE MarginCalculator.[dbo].[tbl_SavedMargins]
+                   SET [intJobReqestId] = @intJobReqestId
+                  ,[strPosition] = @strPosition
+                  ,[strPosLocation] = @strPosLocation
+                  ,[strPosState] = @strPosState
+                  ,[strPosZip] = @strPosZip
+                  ,[intPosWeeks] = @intPosWeeks
+                  ,[DecPosGuarantee] = @DecPosGuarantee
+                  ,[intPosShiftsPerWeek] = @intPosShiftsPerWeek
+                  ,[intPosHrsPerShift] = @intPosHrsPerShift
+                  ,[intPosNonBillOrientation] = @intPosNonBillOrientation
+                  ,[decBillRegRate] = @decBillRegRate
+                  ,[decBillOtRate] = @decBillOtRate
+                  ,[decBillOnCallRate] = @decBillOnCallRate
+                  ,[decBillVMSPercent] = @decBillVMSPercent
+                  ,[intBillCustomOTO8TF] = @intBillCustomOTO8TF
+                  ,[intBillOTOXhrs] = @intBillOTOXhrs
+                  ,[decBillOTO8Rate] = @decBillOTO8Rate
+                  ,[decBillOrientRate] = @decBillOrientRate
+                  ,[intBillOrientHrs] = @intBillOrientHrs
+                  ,[intBillOrientTF] = @intBillOrientTF
+                  ,[DecGSALoging] = @DecGSALoging
+                  ,[DecGSAMeals] = @DecGSAMeals
+                  ,[DecGSAPerDiemTotal] = @DecGSAPerDiemTotal
+                  ,[decPayDesiredRate] = @decPayDesiredRate
+                  ,[decPayRegRate] = @decPayRegRate
+                  ,[decPayOtFlatMult] = @decPayOtFlatMult
+                  ,[decPayOtFlatRate] = @decPayOtFlatRate
+                  ,[decPayCompBonus] = @decPayCompBonus
+                  ,[decPayWklyBonus] = @decPayWklyBonus
+                  ,[intPaySpreadPerDiem] = @intPaySpreadPerDiem
+                  ,[decPayOtherBonus] = @decPayOtherBonus
+                  ,[decFeesCompliance] = @decFeesCompliance
+                  ,[decFeesPrePlacement] = @decFeesPrePlacement
+                  ,[decFeesOther] = @decFeesOther
+                  ,[DateModified] = @DateModified
+                  ,[ModifiedBy] = @ModifiedBy
+                  ,[MarginStatus] = @MarginStatus WHERE intMarginId=@intMarginId "
+            Dim da As New SqlClient.SqlCommand(Sql, cnnEr)
+            da.CommandType = CommandType.Text
+            da.Parameters.AddWithValue("@intMarginId", maringRecord.intMarginId)
+            da.Parameters.AddWithValue("@intJobReqestId", maringRecord.intJobReqestId)
+            da.Parameters.AddWithValue("@strPosition", maringRecord.strPosition)
+            da.Parameters.AddWithValue("@strPosLocation", maringRecord.strPosLocation)
+            da.Parameters.AddWithValue("@strPosState", maringRecord.strPosState)
+            da.Parameters.AddWithValue("@strPosZip", maringRecord.strPosZip)
+            da.Parameters.AddWithValue("@intPosWeeks", maringRecord.intPosWeeks)
+            da.Parameters.AddWithValue("@DecPosGuarantee", maringRecord.DecPosGuarantee)
+            da.Parameters.AddWithValue("@intPosShiftsPerWeek", maringRecord.intPosShiftsPerWeek)
+            da.Parameters.AddWithValue("@intPosHrsPerShift", maringRecord.intPosHrsPerShift)
+            da.Parameters.AddWithValue("@intPosNonBillOrientation", maringRecord.intPosNonBillOrientation)
+            da.Parameters.AddWithValue("@decBillRegRate", maringRecord.decBillRegRate)
+            da.Parameters.AddWithValue("@decBillOtRate", maringRecord.decBillOtRate)
+            da.Parameters.AddWithValue("@decBillOnCallRate", maringRecord.decBillOnCallRate)
+            da.Parameters.AddWithValue("@decBillVMSPercent", maringRecord.decBillVMSPercent)
+            da.Parameters.AddWithValue("@intBillCustomOTO8TF", maringRecord.intBillCustomOTO8TF)
+            da.Parameters.AddWithValue("@intBillOTOXhrs", maringRecord.intBillOTOXhrs)
+            da.Parameters.AddWithValue("@decBillOTO8Rate", maringRecord.decBillOTO8Rate)
+            da.Parameters.AddWithValue("@decBillOrientRate", maringRecord.decBillOrientRate)
+            da.Parameters.AddWithValue("@intBillOrientHrs", maringRecord.intBillOrientHrs)
+            da.Parameters.AddWithValue("@intBillOrientTF", maringRecord.intBillOrientTF)
+            da.Parameters.AddWithValue("@DecGSALoging", maringRecord.DecGSALoging)
+            da.Parameters.AddWithValue("@DecGSAMeals", maringRecord.DecGSAMeals)
+            da.Parameters.AddWithValue("@DecGSAPerDiemTotal", maringRecord.DecGSAPerDiemTotal)
+            da.Parameters.AddWithValue("@decPayDesiredRate", maringRecord.decPayDesiredRate)
+            da.Parameters.AddWithValue("@decPayRegRate", maringRecord.decPayRegRate)
+            da.Parameters.AddWithValue("@decPayOtFlatMult", maringRecord.decPayOtFlatMult)
+            da.Parameters.AddWithValue("@decPayOtFlatRate", maringRecord.decPayOtFlatRate)
+            da.Parameters.AddWithValue("@decPayCompBonus", maringRecord.decPayCompBonus)
+            da.Parameters.AddWithValue("@decPayWklyBonus", maringRecord.decPayWklyBonus)
+            da.Parameters.AddWithValue("@intPaySpreadPerDiem", maringRecord.intPaySpreadPerDiem)
+            da.Parameters.AddWithValue("@decPayOtherBonus", maringRecord.decPayOtherBonus)
+            da.Parameters.AddWithValue("@decFeesCompliance", maringRecord.decFeesCompliance)
+            da.Parameters.AddWithValue("@decFeesPrePlacement", maringRecord.decFeesPrePlacement)
+            da.Parameters.AddWithValue("@decFeesOther", maringRecord.decFeesOther)
+            da.Parameters.AddWithValue("@DateModified", maringRecord.DateModified)
+            da.Parameters.AddWithValue("@ModifiedBy", maringRecord.ModifiedBy)
+            da.Parameters.AddWithValue("@MarginStatus", maringRecord.MarginStatus)
+            da.Parameters.AddWithValue("@StartDate", FacilityOffer.StartDate)
+            da.Parameters.AddWithValue("@EndDate", FacilityOffer.EndDate)
+            cnnEr.Open()
+            da.ExecuteNonQuery()
+            cnnEr.Close()
+            Success = True
+        Catch ex As Exception
+            cnnEr.Close()
+            Success = False
+            ExceptionLogging.SendErrorTomail(ex)
+        End Try
+        Return Success
+    End Function
+	
+	Public Function SaveMarginHistoryRecord(Marginrecord As MarginRecord) As Boolean
+        Dim Success As Boolean
+        Try
+            Sql = "INSERT INTO [MarginCalculator].[dbo].[tbl_SavedMarginsHistory]
+                   ([intMarginId]
+                   ,[intOfferID]
+                   ,[intJobReqestId]
+                   ,[strPosition]
+                   ,[strPosLocation]
+                   ,[strPosState]
+                   ,[strPosZip]
+                   ,[intPosWeeks]
+                   ,[DecPosGuarantee]
+                   ,[intPosShiftsPerWeek]
+                   ,[intPosHrsPerShift]
+                   ,[intPosNonBillOrientation]
+                   ,[decBillRegRate]
+                   ,[decBillOtRate]
+                   ,[decBillOnCallRate]
+                   ,[decBillVMSPercent]
+                   ,[intBillCustomOTO8TF]
+                   ,[intBillOTOXhrs]
+                   ,[decBillOTO8Rate]
+                   ,[decBillOrientRate]
+                   ,[intBillOrientHrs]
+                   ,[intBillOrientTF]
+                   ,[DecGSALoging]
+                   ,[DecGSAMeals]
+                   ,[DecGSAPerDiemTotal]
+                   ,[decPayDesiredRate]
+                   ,[decPayRegRate]
+                   ,[decPayOtFlatMult]
+                   ,[decPayOtFlatRate]
+                   ,[decPayCompBonus]
+                   ,[decPayWklyBonus]
+                   ,[intPaySpreadPerDiem]
+                   ,[decPayOtherBonus]
+                   ,[decFeesCompliance]
+                   ,[decFeesPrePlacement]
+                   ,[decFeesOther]
+                   ,[DateAdded]
+                   ,[DateModified]
+                   ,[ModifiedBy]
+                   ,[MarginStatus]
+                   ,[StartDate]
+                   ,[EndDate]
+                   ,[Notes])
+
+	               Select
+                   [intMarginId]
+                  ,[intOfferID]
+                  ,[intJobReqestId]
+                  ,[strPosition]
+                  ,[strPosLocation]
+                  ,[strPosState]
+                  ,[strPosZip]
+                  ,[intPosWeeks]
+                  ,[DecPosGuarantee]
+                  ,[intPosShiftsPerWeek]
+                  ,[intPosHrsPerShift]
+                  ,[intPosNonBillOrientation]
+                  ,[decBillRegRate]
+                  ,[decBillOtRate]
+                  ,[decBillOnCallRate]
+                  ,[decBillVMSPercent]
+                  ,[intBillCustomOTO8TF]
+                  ,[intBillOTOXhrs]
+                  ,[decBillOTO8Rate]
+                  ,[decBillOrientRate]
+                  ,[intBillOrientHrs]
+                  ,[intBillOrientTF]
+                  ,[DecGSALoging]
+                  ,[DecGSAMeals]
+                  ,[DecGSAPerDiemTotal]
+                  ,[decPayDesiredRate]
+                  ,[decPayRegRate]
+                  ,[decPayOtFlatMult]
+                  ,[decPayOtFlatRate]
+                  ,[decPayCompBonus]
+                  ,[decPayWklyBonus]
+                  ,[intPaySpreadPerDiem]
+                  ,[decPayOtherBonus]
+                  ,[decFeesCompliance]
+                  ,[decFeesPrePlacement]
+                  ,[decFeesOther]
+                  ,[DateAdded]
+                  ,[DateModified]
+                  ,[ModifiedBy]
+                  ,[MarginStatus]
+                  ,[StartDate]
+                  ,[EndDate]
+                  ,[Notes]
+                  FROM [MarginCalculator].[dbo].[tbl_SavedMargins] WHERE intMarginId =@IntMarginID"
+            Dim da As New SqlClient.SqlCommand(Sql, cnnEr)
+            da.CommandType = CommandType.Text
+            da.Parameters.AddWithValue("@intMarginId", Marginrecord.intMarginId)
+            cnnEr.Open()
+            da.ExecuteNonQuery()
+            cnnEr.Close()
+        Catch ex As Exception
+            cnnEr.Close()
+            Success = False
+            ExceptionLogging.SendErrorTomail(ex)
+        End Try
+        Return Success
+    End Function
+	
+	Public Function SaveMarginRecord(Maringrecord As MarginRecord) As Integer
+        Dim IntMarginID As Integer
+        Dim FacilityOffer As New FacilityOfferMarginrates()
+        FacilityOffer.Offerid = Maringrecord.intOfferID
+        FacilityOffer = GetOfferRatesByOfferId(FacilityOffer)
+        Try
+            Sql = "INSERT INTO MarginCalculator.[dbo].[tbl_SavedMargins]
+           ([intOfferID]
+           ,[intJobReqestId]
+           ,[strPosition]
+           ,[strPosLocation]
+           ,[strPosState]
+           ,[strPosZip]
+           ,[intPosWeeks]
+           ,[DecPosGuarantee]
+           ,[intPosShiftsPerWeek]
+           ,[intPosHrsPerShift]
+           ,[intPosNonBillOrientation]
+           ,[decBillRegRate]
+           ,[decBillOtRate]
+           ,[decBillOnCallRate]
+           ,[decBillVMSPercent]
+           ,[intBillCustomOTO8TF]
+           ,[intBillOTOXhrs]
+           ,[decBillOTO8Rate]
+           ,[decBillOrientRate]
+           ,[intBillOrientHrs]
+           ,[intBillOrientTF]
+           ,[DecGSALoging]
+           ,[DecGSAMeals]
+           ,[DecGSAPerDiemTotal]
+           ,[decPayDesiredRate]
+           ,[decPayRegRate]
+           ,[decPayOtFlatMult]
+           ,[decPayOtFlatRate]
+           ,[decPayCompBonus]
+           ,[decPayWklyBonus]
+           ,[intPaySpreadPerDiem]
+           ,[decPayOtherBonus]
+           ,[decFeesCompliance]
+           ,[decFeesPrePlacement]
+           ,[decFeesOther]
+           ,[MarginStatus]
+           ,[StartDate]
+           ,[EndDate])
+     VALUES
+           (@intOfferID, 
+           @intJobReqestId, 
+           @strPosition, 
+           @strPosLocation, 
+           @strPosState, 
+           @strPosZip, 
+           @intPosWeeks, 
+           @DecPosGuarantee, 
+           @intPosShiftsPerWeek, 
+           @intPosHrsPerShift, 
+           @intPosNonBillOrientation, 
+           @decBillRegRate, 
+           @decBillOtRate, 
+           @decBillOnCallRate, 
+           @decBillVMSPercent, 
+           @intBillCustomOTO8TF, 
+           @intBillOTOXhrs, 
+           @decBillOTO8Rate, 
+           @decBillOrientRate, 
+           @intBillOrientHrs, 
+           @intBillOrientTF, 
+           @DecGSALoging, 
+           @DecGSAMeals, 
+           @DecGSAPerDiemTotal, 
+           @decPayDesiredRate, 
+           @decPayRegRate, 
+           @decPayOtFlatMult, 
+           @decPayOtFlatRate, 
+           @decPayCompBonus, 
+           @decPayWklyBonus, 
+           @intPaySpreadPerDiem, 
+           @decPayOtherBonus, 
+           @decFeesCompliance, 
+           @decFeesPrePlacement, 
+           @decFeesOther, 
+           @MarginStatus,
+           @StartDate,
+           @EndDate ) SELECT @@IDENTITY"
+            Dim da As New SqlClient.SqlCommand(Sql, cnnEr)
+            da.CommandType = CommandType.Text
+            da.Parameters.AddWithValue("@intOfferID", Maringrecord.intOfferID)
+            da.Parameters.AddWithValue("@intJobReqestId", Maringrecord.intJobReqestId)
+            da.Parameters.AddWithValue("@strPosition", Maringrecord.strPosition)
+            da.Parameters.AddWithValue("@strPosLocation", Maringrecord.strPosLocation)
+            da.Parameters.AddWithValue("@strPosState", Maringrecord.strPosState)
+            da.Parameters.AddWithValue("@strPosZip", Maringrecord.strPosZip)
+            da.Parameters.AddWithValue("@intPosWeeks", Maringrecord.intPosWeeks)
+            da.Parameters.AddWithValue("@DecPosGuarantee", Maringrecord.DecPosGuarantee)
+            da.Parameters.AddWithValue("@intPosShiftsPerWeek", Maringrecord.intPosShiftsPerWeek)
+            da.Parameters.AddWithValue("@intPosHrsPerShift", Maringrecord.intPosHrsPerShift)
+            da.Parameters.AddWithValue("@intPosNonBillOrientation", Maringrecord.intPosNonBillOrientation)
+            da.Parameters.AddWithValue("@decBillRegRate", Maringrecord.decBillRegRate)
+            da.Parameters.AddWithValue("@decBillOtRate", Maringrecord.decBillOtRate)
+            da.Parameters.AddWithValue("@decBillOnCallRate", Maringrecord.decBillOnCallRate)
+            da.Parameters.AddWithValue("@decBillVMSPercent", Maringrecord.decBillVMSPercent)
+            da.Parameters.AddWithValue("@intBillCustomOTO8TF", Maringrecord.intBillCustomOTO8TF)
+            da.Parameters.AddWithValue("@intBillOTOXhrs", Maringrecord.intBillOTOXhrs)
+            da.Parameters.AddWithValue("@decBillOTO8Rate", Maringrecord.decBillOTO8Rate)
+            da.Parameters.AddWithValue("@decBillOrientRate", Maringrecord.decBillOrientRate)
+            da.Parameters.AddWithValue("@intBillOrientHrs", Maringrecord.intBillOrientHrs)
+            da.Parameters.AddWithValue("@intBillOrientTF", Maringrecord.intBillOrientTF)
+            da.Parameters.AddWithValue("@DecGSALoging", Maringrecord.DecGSALoging)
+            da.Parameters.AddWithValue("@DecGSAMeals", Maringrecord.DecGSAMeals)
+            da.Parameters.AddWithValue("@DecGSAPerDiemTotal", Maringrecord.DecGSAPerDiemTotal)
+            da.Parameters.AddWithValue("@decPayDesiredRate", Maringrecord.decPayDesiredRate)
+            da.Parameters.AddWithValue("@decPayRegRate", Maringrecord.decPayRegRate)
+            da.Parameters.AddWithValue("@decPayOtFlatMult", Maringrecord.decPayOtFlatMult)
+            da.Parameters.AddWithValue("@decPayOtFlatRate", Maringrecord.decPayOtFlatRate)
+            da.Parameters.AddWithValue("@decPayCompBonus", Maringrecord.decPayCompBonus)
+            da.Parameters.AddWithValue("@decPayWklyBonus", Maringrecord.decPayWklyBonus)
+            da.Parameters.AddWithValue("@intPaySpreadPerDiem", Maringrecord.intPaySpreadPerDiem)
+            da.Parameters.AddWithValue("@decPayOtherBonus", Maringrecord.decPayOtherBonus)
+            da.Parameters.AddWithValue("@decFeesCompliance", Maringrecord.decFeesCompliance)
+            da.Parameters.AddWithValue("@decFeesPrePlacement", Maringrecord.decFeesPrePlacement)
+            da.Parameters.AddWithValue("@decFeesOther", Maringrecord.decFeesOther)
+            da.Parameters.AddWithValue("@MarginStatus", Maringrecord.MarginStatus)
+            da.Parameters.AddWithValue("@StartDate", FacilityOffer.StartDate)
+            da.Parameters.AddWithValue("@EndDate", FacilityOffer.EndDate)
+            cnnEr.Open()
+            IntMarginID = da.ExecuteScalar()
+            cnnEr.Close()
+        Catch ex As Exception
+            cnnEr.Close()
+            IntMarginID = 0
+            ExceptionLogging.SendErrorTomail(ex)
+        End Try
+        Return IntMarginID
+    End Function
+	
+	 Public Function UpdateMarginRecordNotes(Notes As String, IntMarginId As Integer) As Boolean
+        Dim Success As Boolean
+        Try
+            Sql = "UPDATE MarginCalculator.[dbo].[tbl_SavedMargins] "
+            Sql &= "SET Notes = @Notes, "
+            Sql &= "DateModified = GetDate() "
+            Sql &= "WHERE intMarginId=@intMarginId "
+            Dim da As New SqlClient.SqlCommand(Sql, cnnEr)
+            da.CommandType = CommandType.Text
+            da.Parameters.AddWithValue("@intMarginId", IntMarginId)
+            da.Parameters.AddWithValue("@Notes", Notes)
+            cnnEr.Open()
+            da.ExecuteNonQuery()
+            cnnEr.Close()
+            Success = True
+        Catch ex As Exception
+            cnnEr.Close()
+            Success = False
+            ExceptionLogging.SendErrorTomail(ex)
+        End Try
+        Return Success
+    End Function
+	
+	Public Function UpdateBonusesOther(Bonus As DiscretionayBonuses) As Boolean
+        Dim BoolSuccess As Boolean
+        Try
+            Sql = "Update  [dbo].[ACC_Bonuses]
+                  SET Margins = @margins
+                   WHERE BonusID = @BonusID "
+            Dim da As New SqlClient.SqlCommand(Sql, cnnTSM)
+            da.CommandType = CommandType.Text
+            da.Parameters.AddWithValue("@BonusID", Bonus.BonusID)
+            da.Parameters.AddWithValue("@margins", Bonus.margin)
+            cnnTSM.Open()
+            da.ExecuteNonQuery()
+            cnnTSM.Close()
+            BoolSuccess = True
+        Catch ex As Exception
+            cnnTSM.Close()
+            ExceptionLogging.SendErrorTomail(ex)
+        End Try
+        Return BoolSuccess
+    End Function
