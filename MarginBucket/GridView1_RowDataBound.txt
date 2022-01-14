@@ -1,0 +1,92 @@
+   Protected Sub GridView1_RowDataBound(ByVal sender As Object, ByVal e As System.Web.UI.WebControls.GridViewRowEventArgs)
+        Try
+            Dim NewDate As DateTime
+            NewDate = DateTime.Now.AddHours(-2)
+            If e.Row.RowType = DataControlRowType.DataRow Then
+                e.Row.ID = e.Row.DataItem("FacPacketID")
+                If Session("editIndex") = myCounter Then
+                    Dim tb3 As LinkButton = DirectCast(e.Row.Cells(0).Controls(0), LinkButton)
+                    If tb3.Text <> "Edit" Then
+                        tb3.Text = "Y "
+                        Dim tb4 As LinkButton = DirectCast(e.Row.Cells(0).Controls(2), LinkButton)
+                        tb4.Text = " N"
+                    End If
+                End If
+                If IsNothing(Session("Activeuser")) Then
+                    activeStatus = e.Row.FindControl("ddlSubmitStatus2")
+                    activeStatus.Enabled = False
+                Else
+                    activeStatus = e.Row.FindControl("ddlSubmitStatus2")
+                    activeStatus.Enabled = True
+
+                End If
+                If InStr(e.Row.Cells(14).Text, "1/1/1900") Then
+                    e.Row.Cells(14).Text = ""
+                End If
+                If Session("bucketUsername") = "" Then
+                    e.Row.Cells(0).Enabled = False
+                    e.Row.Cells(1).Enabled = False
+                    e.Row.Cells(14).Enabled = False
+                    e.Row.Cells(15).Enabled = False
+                    e.Row.Cells(16).Enabled = False
+                End If
+                myCounter += 1
+                e.Row.Cells(0).Width = "30"
+
+                If (e.Row.DataItem("SubmitStatus") = "In Queue - Act Mgr") And (e.Row.DataItem("submitted") > NewDate And e.Row.DataItem("SubmittedElse") = 0) Then
+                    e.Row.CssClass += " rowStyleLightGreen"
+                    Exit Sub
+                ElseIf (e.Row.DataItem("Fired").ToString = "Yes") And (e.Row.DataItem("SubmitStatus").ToString = "In Queue - Act Mgr") And (e.Row.DataItem("SubmittedElse") = 0) Then
+                    e.Row.CssClass += " rowStyleRed"
+                    Exit Sub
+                ElseIf (e.Row.DataItem("Cancelled").ToString = "Yes") And (e.Row.DataItem("SubmitStatus").ToString = "In Queue - Act Mgr") And (e.Row.DataItem("SubmittedElse") = 1) Then
+                    e.Row.CssClass += " rowStyleOrange"
+                    Exit Sub
+                ElseIf ((e.Row.DataItem("KEY2") = "Can.Current Employee") Or (e.Row.DataItem("KEY2") = "Can. Former Employee")) And (e.Row.DataItem("SubmitStatus") = "In Queue - Act Mgr") And (e.Row.DataItem("SubmittedElse") = 0) Then
+                    e.Row.CssClass += " rowStyleLightBlue"
+                    Exit Sub
+                End If
+                If (e.Row.DataItem("SubmitStatus") = "Facility Made Offer") Then
+                    e.Row.CssClass += " rowStyleOrange"
+                    e.Row.Font.Bold = True
+                    Exit Sub
+                End If
+
+                If Not (e.Row.DataItem("Highlight") Is DBNull.Value) AndAlso (e.Row.DataItem("Highlight") = 1 And e.Row.DataItem("SubmittedElse") = 0) Then
+                    e.Row.CssClass += " rowStyleHighlightYellow"
+                    Exit Sub
+                ElseIf Not (e.Row.DataItem("Highlight") Is DBNull.Value) AndAlso (e.Row.DataItem("Highlight") = 2 And e.Row.DataItem("SubmittedElse") = 0) Then
+                    e.Row.CssClass += " rowStyleHighlightBlue"
+                    Exit Sub
+                ElseIf Not (e.Row.DataItem("Highlight") Is DBNull.Value) AndAlso (e.Row.DataItem("Highlight") = 3 And e.Row.DataItem("SubmittedElse") = 0) Then
+                    e.Row.CssClass += " rowStyleHighlightPink"
+                    Exit Sub
+                ElseIf Not (e.Row.DataItem("Highlight") Is DBNull.Value) AndAlso (e.Row.DataItem("Highlight") = 4 And e.Row.DataItem("SubmittedElse") = 0) Then
+                    e.Row.CssClass += " rowStyleHighlightGreen"
+                    Exit Sub
+                End If
+                If (e.Row.DataItem("SubmittedElse") = 1) Then
+
+                    Dim ColorID As Integer = GetCandidateIDStatus(e.Row.DataItem("CandidateId"))
+                    If ColorID = 0 Then
+                        e.Row.CssClass += " rowStyleOrange"
+                        e.Row.Font.Bold = True
+                    Else
+                        e.Row.CssClass += " rowbgblk"
+                        e.Row.BackColor = Color.Black
+                        e.Row.Font.Bold = True
+                        e.Row.ForeColor = Color.White
+                    End If
+
+                    Exit Sub
+                End If
+                If IsNumeric(e.Row.DataItem("redflag")) Then
+                    e.Row.CssClass += " rowStyleRed"
+                    Exit Sub
+                End If
+            End If
+        Catch ex As Exception
+            Label13.Visible = True
+            Label13.Text = "An Unexpected ERROR HAS OCCURED WHEN LOADING THE BUCKET! " & ex.Message
+        End Try
+    End Sub
