@@ -1,0 +1,1630 @@
+Imports System.Data
+Imports AjaxControlToolkit
+Imports System.Drawing
+
+Public Class JobBoard
+    Inherits System.Web.UI.Page
+
+    Private Sub JobBoard_Init(sender As Object, e As EventArgs) Handles Me.Init
+
+        Dim MyCrypto As New Crypto.clsCrypto(Crypto.clsCrypto.SymmProvEnum.DES)
+
+        Session(ses_Password) = MyCrypto.Decrypting(My.Settings.Password, Key)
+
+        MyCrypto = Nothing
+    End Sub
+
+
+    Private Sub Page_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
+        'Put user code to initialize the page here
+
+        SqlDataSource1.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSource_JobEntryCount.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSource_TotalJobCount.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSourceSpecialty.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+
+        If Not Page.IsPostBack Then
+
+            lblResult.Visible = False
+            lblResult2.Visible = False
+            pnlSearch.Visible = False
+            cbOpen.Checked = True
+
+            JobList.AllowPaging = True
+            JobList.PageSize = 100
+
+            btnEmailAll1.ToolTip = "Maximum of " & MAX_EMAIL_JOBS
+            btnEmailAll2.ToolTip = "Maximum of " & MAX_EMAIL_JOBS
+
+            ' Special code to limit who can Close Jobs
+            Session(ses_CloseJobList) = New List(Of Integer)
+            btnCloseSelected1.Enabled = False
+            btnCloseSelected2.Enabled = False
+            Dim MyUserID As String = ""
+            Dim MyUserIDShort As String = ""
+
+            Try
+                MyUserID = Request.QueryString("userid").Trim
+                MyUserIDShort = MyUserID
+            Catch ex As Exception
+            End Try
+
+            If MyUserID = "" Then
+                MyUserID = Page.User.Identity.Name.Replace("TRUSTAFF\", "").ToUpper
+                If MyUserID.Length > 8 Then
+                    MyUserIDShort = MyUserID.Substring(0, 8)
+                Else
+                    MyUserIDShort = MyUserID
+                End If
+            End If
+
+
+            If MyUserID <> "" Then
+                Select Case MyUserID
+                    Case "CARMOGID", "DAWN", "SHANNONS", "PVONTZ", "RWALTER"
+                        btnCloseSelected1.Enabled = True
+                        btnCloseSelected2.Enabled = True
+                End Select
+            End If
+
+
+            PopulateSearch()
+
+            Dim MyData As New TruData.TruData(My.Settings.Server, My.Settings.Database, My.Settings.Username, CType(Session(ses_Password), String))
+            Dim sSQL As String = ""
+            Dim sSQLJobEntries As String = ""
+            Dim sSQLTotalJobs As String = ""
+
+            Try
+                MyData.OpenConnection()
+
+                sSQL = "select department, user_email, name from userlist where gm_username = '" + MyUserID + "' or LEFT(gm_username, 8) = '" + MyUserIDShort + "'"
+                Dim Reader As SqlClient.SqlDataReader = Nothing
+
+                'ShowAlert(sSQL)
+
+                lblDepartment.Text = "NONE"
+                Reader = MyData.ExecuteQuerySelect_SQL(sSQL)
+                While Reader.Read
+                    If Not Reader.IsDBNull(0) Then
+                        Session(ses_Department) = Reader.GetString(0)
+                    End If
+                    If Not Reader.IsDBNull(1) Then
+                        Session(ses_UserEmail) = Reader.GetString(1)
+                    Else
+                        Session(ses_UserEmail) = ""
+                    End If
+                    If Not Reader.IsDBNull(2) Then
+                        Session(ses_UserName) = Reader.GetString(2)
+                    Else
+                        Session(ses_UserName) = ""
+                    End If
+                    Exit While
+                End While
+                Reader.Close()
+
+                lblDepartment.Text = Session(ses_UserName).ToString & " (" & CType(Session(ses_Department), String) & ")"
+
+            Catch ex As Exception
+                'ShowAlert(ex.Message)
+            Finally
+                Try
+                    If Not MyData.IsClosed Then
+                        MyData.CloseConnection()
+                    End If
+                Catch
+                End Try
+            End Try
+
+            Session(ses_UserID) = MyUserID
+
+
+            'Divisions: 1=Travel,2=Permanent,3=Government,4=Strike
+            'Professions: 1=Nursing,2=Allied,3=Therapy,4=Pharmacist,5=Physician
+
+            Dim sSelect As String = ""
+            Dim sFrom As String = ""
+            Dim sWhere As String = ""
+            Dim sGroup As String = ""
+
+            btnSearch.Enabled = False
+
+            sSelect = "SELECT pk_JobRequestID, InternalUserGroup, RegistryName, RegistryID, MktgPosting, COMPANY, CITY, STATE, ZIP, dateUpdated, SpecialtyName, ProfessionName, DivisionName, RegistryPrivateID, StatusName, InternalDescription, Guarantee, NumOpenings, dateNeeded, AllInclusivePayRate, EstimatedExpenses, OvertimePayRate, TaxAdvPayRateNoTax, TaxAdvPayRateTax, SettingName, Beds, Shiftt, Duration, Total" +
+                      ", AM, Salary, ADDRESS1, Tier, AccuratePay, Status,shift,[pk_DivisionID],[pk_ProfessionID],[pk_SpecialtyID],[pk_SettingID],[VMS_MSP], BillRate, TaxAdvPayRateNoTaxHourly, health_system, SWAT_Tier  "
+
+            sSQLJobEntries = "SELECT Count(*) "
+            sSQLTotalJobs = "SELECT SUM(NumOpenings) "
+
+            sFrom = " FROM V_Jobboard "
+            sGroup = ""
+
+
+            If cbOpen.Checked And Not cbClosed.Checked Then
+                sWhere = " WHERE ((Status = 'Open') or (Status = 'Hot') or (Status = 'Auto offer')) "
+            ElseIf Not cbOpen.Checked And cbClosed.Checked Then
+                sWhere = " WHERE Status = 'Closed' "
+            ElseIf cbOpen.Checked And cbClosed.Checked Then
+                sWhere = ""
+            Else
+                ShowAlert("You must select at least Open or Closed.")
+                Exit Sub
+            End If
+
+            Select Case lblDepartment.Text
+                Case "Nurse & Allied Travel", "Nurse Advocates", "Sales"
+                    'Div 1, Prof 1,2
+                    If sWhere = "" Then
+                        sWhere = " WHERE (pk_DivisionID = 1) AND (pk_ProfessionID in (1,2)) "
+                    Else
+                        sWhere = sWhere + " AND (pk_DivisionID = 1) AND (pk_ProfessionID in (1,2)) "
+                    End If
+                Case "Perm Placement"
+                    'Div 1,2 - Prof 2,3,4
+                    If sWhere = "" Then
+                        sWhere = " WHERE (pk_DivisionID = 2) AND (pk_ProfessionID in (2,3,4)) "
+                    Else
+                        sWhere = sWhere + " AND (pk_DivisionID = 2) AND (pk_ProfessionID in (2,3,4)) "
+                    End If
+                Case "Government"
+                    'Div 3
+                    If sWhere = "" Then
+                        sWhere = " WHERE (pk_DivisionID = 3) "
+                    Else
+                        sWhere = sWhere + " AND (pk_DivisionID = 3) "
+                    End If
+                Case "Solutions"
+                    ' 2012-06-19 JM: Added for Solutions Team to identify their jobs
+                    If sWhere = "" Then
+                        sWhere = " WHERE (InternalUserGroup = 2) "
+                    Else
+                        sWhere = sWhere + "AND (InternalUserGroup = 2) "
+                    End If
+                Case Else
+                    'Div 1 - Everyone Else
+                    'sWhere = sWhere + " AND (fk_DivisionID = 1) "
+            End Select
+
+            'This was removed from the search critiria 03/20/20.
+            'they want this back now 11/6/2020
+            Dim TierClause As String = ""
+            Dim NoTier As Boolean = False
+
+            If cbTier1.Checked Then
+                TierClause = "'1'"
+            End If
+            If cbTier2.Checked Then
+                If TierClause = "" Then
+                    TierClause = "'2'"
+                Else
+                    TierClause &= ",'2'"
+                End If
+            End If
+            If cbTier3.Checked Then
+                If TierClause = "" Then
+                    TierClause = "'3'"
+                Else
+                    TierClause &= ",'3'"
+                End If
+            End If
+            If cbTier4.Checked Then
+                If TierClause = "" Then
+                    TierClause = "'4'"
+                Else
+                    TierClause &= ",'4'"
+                End If
+            End If
+            If cbTier5.Checked Then
+                If TierClause = "" Then
+                    TierClause = "'5'"
+                Else
+                    TierClause &= ",'5'"
+                End If
+            End If
+            'If cbTieraA.Checked Then
+            '    If TierClause = "" Then
+            '        TierClause = "'1A'"
+            '    Else
+            '        TierClause &= ",'1A'"
+            '    End If
+            'End If
+            If cbTierNoTier.Checked Then
+                NoTier = True
+            End If
+
+            If TierClause <> "" Or NoTier Then
+
+                If NoTier Then
+
+                    If TierClause = "" Then
+
+                        If sWhere = "" Then
+                            sWhere = " WHERE Tier IS NULL "
+                        Else
+                            sWhere &= " AND Tier IS NULL "
+                        End If
+
+                    Else
+
+                        If sWhere = "" Then
+                            sWhere = " WHERE (Tier IN (" & TierClause & ") OR Tier IS NULL) "
+                        Else
+                            sWhere &= " AND (Tier IN (" & TierClause & ") OR Tier IS NULL) "
+                        End If
+
+                    End If
+
+                Else
+
+                    If TierClause <> "" Then
+
+                        If sWhere = "" Then
+                            sWhere = " WHERE Tier IN (" & TierClause & ") "
+                        Else
+                            sWhere &= " AND Tier IN (" & TierClause & ") "
+                        End If
+
+                    End If
+
+                End If
+
+            End If
+
+
+            sSQL = sSelect + sFrom + sWhere + sGroup + " ORDER BY pk_JobRequestID Desc" 'changed from DateNeeded to pk_JobRequestID to put older jobs at the end
+            sSQLJobEntries = sSQLJobEntries + sFrom + sWhere
+            sSQLTotalJobs = sSQLTotalJobs + sFrom + sWhere
+            Session(ses_LastSQL) = sSQL
+            Session(ses_LastSQLJobEntries) = sSQLJobEntries
+            Session(ses_LastSQLTotalJobs) = sSQLTotalJobs
+
+            SqlDataSource1.SelectCommand = sSQL
+            SqlDataSource_JobEntryCount.SelectCommand = sSQLJobEntries
+            SqlDataSource_TotalJobCount.SelectCommand = sSQLTotalJobs
+
+            Dim dvJobEntries As DataView
+            dvJobEntries = CType(SqlDataSource_JobEntryCount.Select(DataSourceSelectArguments.Empty), DataView)
+            Dim dvTotalJobs As DataView
+            dvTotalJobs = CType(SqlDataSource_TotalJobCount.Select(DataSourceSelectArguments.Empty), DataView)
+
+            JobList.DataBind()
+
+            Dim ShowJobEntryCount As Integer = 0
+            Dim ShowTotalJobCount As Integer = 0
+
+            Try
+                ShowJobEntryCount = CType(dvJobEntries.Table.Rows(0)(0), Integer)
+                btnEmailAll1.Enabled = False
+                btnEmailAll2.Enabled = False
+                btnEmailAll1AdvNoPay.Enabled = False
+                btnEmailAll2AdvNoPay.Enabled = False
+                btnEmailAll1NoPay.Enabled = False
+                btnEmailAll2NoPay.Enabled = False
+                If ShowJobEntryCount > 0 And ShowJobEntryCount < MAX_EMAIL_JOBS Then
+                    btnEmailAll1.Enabled = True
+                    btnEmailAll2.Enabled = True
+                    btnEmailAll1NoPay.Enabled = True
+                    btnEmailAll2NoPay.Enabled = True
+                    btnEmailAll1AdvNoPay.Enabled = True
+                    btnEmailAll2AdvNoPay.Enabled = True
+                    JobList.AllowPaging = False
+                End If
+            Catch
+            End Try
+            Try
+                ShowTotalJobCount = CType(dvTotalJobs.Table.Rows(0)(0), Integer)
+            Catch
+            End Try
+
+            Count.Text = "Job Entries: " & ShowJobEntryCount & "  Total Jobs: " & ShowTotalJobCount
+
+            btnSearch.Enabled = True
+
+        End If
+
+    End Sub
+
+    Private Sub JobList_Sorting(ByVal sender As Object, ByVal e As System.Web.UI.WebControls.GridViewSortEventArgs) Handles JobList.Sorting
+
+        SqlDataSource1.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSource1.SelectCommand = CType(Session(ses_LastSQL), String)
+
+        SqlDataSource_TotalJobCount.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSource_TotalJobCount.SelectCommand = CType(Session(ses_LastSQLTotalJobs), String)
+
+        SqlDataSource_JobEntryCount.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSource_JobEntryCount.SelectCommand = CType(Session(ses_LastSQLJobEntries), String)
+
+    End Sub
+
+    Private Sub JobList_PageIndexChanging(ByVal sender As Object, ByVal e As System.Web.UI.WebControls.GridViewPageEventArgs) Handles JobList.PageIndexChanging
+
+        SqlDataSource1.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSource1.SelectCommand = CType(Session(ses_LastSQL), String)
+
+        SqlDataSource_TotalJobCount.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSource_TotalJobCount.SelectCommand = CType(Session(ses_LastSQLTotalJobs), String)
+
+        SqlDataSource_JobEntryCount.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSource_JobEntryCount.SelectCommand = CType(Session(ses_LastSQLJobEntries), String)
+
+    End Sub
+
+    Protected Sub JobList_RowDataBound(ByVal sender As Object, ByVal e As GridViewRowEventArgs) Handles JobList.RowDataBound
+
+        If e.Row.RowType = DataControlRowType.Header Then
+            'If Session(ses_Department) = "Solutions" Or Session(ses_Department) = "THS" Or Session(ses_Department) = "Executive Search" Then
+            '    e.Row.Cells(Column_Total).Text = "Bill Rate"
+            'Else
+            '    e.Row.Cells(Column_Total).Text = "All Inc"
+            'End If
+        End If
+
+        Dim NewDate As DateTime
+        NewDate = DateTime.Now.AddHours(-2)
+
+        If e.Row.RowType = DataControlRowType.DataRow Then
+
+            If (e.Row.DataItem("StatusName") = "Closed") Then
+                e.Row.BackColor = Drawing.Color.MistyRose
+            End If
+
+            If (e.Row.DataItem("MktgPosting")) Then
+                e.Row.BackColor = Drawing.Color.LightGoldenrodYellow
+            End If
+
+            If Not IsDBNull(e.Row.DataItem("AccuratePay")) Then
+                If (CType(e.Row.DataItem("AccuratePay"), String) = "True") Then
+                    e.Row.BackColor = Color.FromArgb(144, 189, 80)
+                End If
+            End If
+
+            If (e.Row.DataItem("StatusName") = "Hot Job") Then
+                e.Row.BackColor = Drawing.Color.Red
+            End If
+
+            If (e.Row.DataItem("StatusName") = "Auto offer") Then
+                e.Row.BackColor = Drawing.Color.Orange
+            End If
+
+            If (e.Row.DataItem("RegistryID").ToString = "13") Then
+                Dim img As HtmlImage = e.Row.FindControl("MedicalConnections_Logo")
+                img.Visible = True
+            End If
+
+            If (e.Row.DataItem("InternalUserGroup").ToString = "2") Then
+                Dim img As HtmlImage = e.Row.FindControl("THS_Logo")
+                img.Visible = True
+            End If
+
+            If (e.Row.DataItem("InternalUserGroup").ToString = "3") Then
+                Dim img As HtmlImage = e.Row.FindControl("Exec_Logo")
+                img.Visible = True
+            End If
+
+            Exit Sub
+
+        End If
+
+    End Sub
+
+    Protected Sub lbProfession_SelectedIndexChanged(sender As Object, e As EventArgs) Handles lbProfession.SelectedIndexChanged
+
+        If lbProfession.Items(0).Selected Then
+            SqlDataSourceSpecialty.SelectCommand = "SELECT pk_SpecialtyID, SpecialtyName FROM JobSpecialty WHERE (Active = 1) ORDER BY SpecialtyName"
+        Else
+            Dim idList As String = "0"
+            For Each item As ListItem In lbProfession.Items
+                If item.Selected Then
+                    idList &= "," & item.Value
+                End If
+            Next
+            SqlDataSourceSpecialty.SelectCommand = String.Format("SELECT pk_SpecialtyID, SpecialtyName FROM JobSpecialty WHERE (fk_ProfessionID in ({0})) AND (Active = 1) ORDER BY SpecialtyName", idList)
+        End If
+
+        'Dim idList As String = "0"
+        'If Not lbProfession.Items(0).Selected Then
+        '    For Each item As ListItem In lbProfession.Items
+        '        If item.Selected Then
+        '            idList &= "," & item.Value
+        '        End If
+        '    Next
+        'End If
+
+        'lbSpecialty.DataTextField = "SpecialtyName"
+        'lbSpecialty.DataValueField = "pk_SpecialtyId"
+        'If idList = 0 Then
+        '    lbSpecialty.DataSource = CType(Session(ses_ProfessionList), DataTable)
+        'Else
+        '    lbSpecialty.DataSource = CType(Session(ses_ProfessionList), DataTable).Select("pk_ProfessionID in (" & idList & ")").CopyToDataTable
+        'End If
+        'lbSpecialty.DataBind()
+        'lbSpecialty.Items.Insert(0, keyword_ALL)
+        'lbSpecialty.SelectedIndex = 0
+
+    End Sub
+
+    Protected Sub OnClickHandler(ByVal sender As Object, ByVal e As EventArgs)
+        Dim lnk As LinkButton = CType(sender, LinkButton)
+        Select Case lnk.CommandName
+            Case "ViewJobCalc"
+                Response.Write("<script>window.open('" & page_CalcPerm & "?billrate=" & lnk.CommandArgument & "','_blank');</script>")
+            Case "ViewJobTravelCalc"
+                Response.Write("<script>window.open('" & page_CalcTravel & "?rates=" & lnk.CommandArgument & "','_blank');</script>")
+            Case "ViewMargin"
+                'Response.Write("<script>window.open('" & page_CalcMargin & lnk.CommandArgument & "','_blank');</script>")
+                'Response.Write("<script>newPopup('" & page_CalcMargin & lnk.CommandArgument & "');</script>")
+                'lnk.Attributes.Add("OnClick", "JavaScript:newPopup('http://margins.trustaff.com/?JobReqId=383180');")
+            Case Else
+        End Select
+    End Sub
+
+#Region "Populate"
+
+    Private Sub PopulateSearch()
+
+        Dim MyData As New TruData.TruData(My.Settings.Server, My.Settings.Database, My.Settings.Username, CType(Session(ses_Password), String))
+        Dim sSQL As String = ""
+
+        ' First, populate the professions/specialties in memory so they load faster on the fly when selecting a Profession
+
+        Try
+            MyData.OpenConnection()
+
+            sSQL = "SELECT p.pk_ProfessionID, p.ProfessionName, s.pk_SpecialtyID, s.SpecialtyName " & _
+                   "FROM JobSpecialty s " & _
+                   "INNER JOIN JobProfessions p on p.pk_ProfessionID = s.fk_ProfessionID " & _
+                   "WHERE s.Active = 1 " & _
+                   "ORDER BY p.ProfessionName, s.SpecialtyName"
+
+            Session(ses_ProfessionList) = MyData.ExecuteQuerySelectDT(sSQL)
+
+        Catch ex As Exception
+            ShowAlert(ex.Message)
+        Finally
+            Try
+                If Not MyData.IsClosed Then
+                    MyData.CloseConnection()
+                End If
+            Catch
+            End Try
+        End Try
+
+        ' Second, load the rest
+
+        Try
+
+            sSQL = "select [state] as 'State', [state] + ' - ' + [statedesc] as 'Description' from [LookupState] order by statedesc"
+            lbState.DataTextField = "Description"
+            lbState.DataValueField = "State"
+            lbState.DataSource = MyData.ExecuteQuerySelectDT(sSQL)
+            lbState.DataBind()
+            lbState.Items.Insert(0, keyword_ALL)
+            lbState.SelectedIndex = 0
+
+            sSQL = "SELECT [pk_ProfessionID], [ProfessionName] FROM [JobProfessions] ORDER BY [ProfessionName]"
+            lbProfession.DataTextField = "ProfessionName"
+            lbProfession.DataValueField = "pk_ProfessionID"
+            lbProfession.DataSource = MyData.ExecuteQuerySelectDT(sSQL)
+            lbProfession.DataBind()
+            lbProfession.Items.Insert(0, keyword_ALL)
+            lbProfession.SelectedIndex = 0
+
+            'sSQL = "SELECT SpecialtyName, MIN(pk_SpecialtyId) AS pk_SpecialtyId FROM JobSpecialty WHERE Active =1 and SpecialtyName IS NOT NULL GROUP BY SpecialtyName Order by SpecialtyName"
+            'lbSpecialty.DataTextField = "SpecialtyName"
+            'lbSpecialty.DataValueField = "pk_SpecialtyId"
+            'lbSpecialty.DataSource = MyData.ExecuteQuerySelectDT(sSQL)
+            'lbSpecialty.DataBind()
+            'lbSpecialty.Items.Insert(0, keyword_ALL)
+            'lbSpecialty.SelectedIndex = 0
+
+            sSQL = "SELECT SettingName, pk_SettingID FROM JobSetting WHERE Active = 1 and SettingName IS NOT NULL"
+            lbSetting.DataTextField = "SettingName"
+            lbSetting.DataValueField = "pk_SettingID"
+            lbSetting.DataSource = MyData.ExecuteQuerySelectDT(sSQL)
+            lbSetting.DataBind()
+            lbSetting.Items.Insert(0, keyword_ALL)
+            lbSetting.SelectedIndex = 0
+
+            sSQL = "SELECT [pk_DivisionID], [DivisionName] FROM [JobDivisions] ORDER BY [pk_DivisionID]"
+            lbDivision.DataTextField = "DivisionName"
+            lbDivision.DataValueField = "pk_DivisionID"
+            lbDivision.DataSource = MyData.ExecuteQuerySelectDT(sSQL)
+            lbDivision.DataBind()
+            lbDivision.Items.Insert(0, keyword_ALL)
+            lbDivision.SelectedIndex = 0
+
+            sSQL = "SELECT DISTINCT CONTACT1.COMPANY AS FACILITY, CONTACT1.ID as FACILITYID FROM CONTACT1 INNER JOIN JobRequests ON CONTACT1.ID = JobRequests.fk_ClientID WHERE (JobRequests.fk_StatusID IN (1, 6,9)) ORDER BY CONTACT1.COMPANY"
+            lbFacility.DataTextField = "FACILITY"
+            lbFacility.DataValueField = "FACILITYID"
+            lbFacility.DataSource = MyData.ExecuteQuerySelectDT(sSQL)
+            lbFacility.DataBind()
+            lbFacility.Items.Insert(0, keyword_ALL)
+            lbFacility.SelectedIndex = 0
+
+            sSQL = "SELECT DISTINCT  CONTACT1.Key4  AS AcctManager FROM CONTACT1 INNER JOIN JobRequests ON CONTACT1.ID = JobRequests.fk_ClientID  ORDER BY CONTACT1.Key4"
+            lbAcctManager.DataTextField = "AcctManager"
+            lbAcctManager.DataValueField = "AcctManager"
+            lbAcctManager.DataSource = MyData.ExecuteQuerySelectDT(sSQL)
+            lbAcctManager.DataBind()
+            lbAcctManager.Items.Insert(0, keyword_ALL)
+            lbAcctManager.SelectedIndex = 0
+
+            sSQL = "select distinct ID, name as RegistryName from RPAJobSite WHERE ID NOT IN (4,3,5,7,8,9,13,14,15,18,19,22,23,24,25,38,45,46,51) order by RegistryName"
+            lbRegistry.DataTextField = "RegistryName"
+            lbRegistry.DataValueField = "RegistryName"
+            lbRegistry.DataSource = MyData.ExecuteQuerySelectDT(sSQL)
+            lbRegistry.DataBind()
+            lbRegistry.Items.Insert(0, keyword_ALL)
+            lbRegistry.SelectedIndex = 0
+
+            sSQL = "SELECT ENTRY as VMS_MSP FROM [Trustaff_Med].[dbo].[LOOKUP] where FIELDNAME = 'UVMSMSP   V' AND [ENTRY] NOT IN ('OH Hospital Association','RN Allied Specialty','RTG Staffing','Agile','Symbio','AZ Hospital Association (AZHA)','PPR Healthcare') order by 1"
+            lbVMS.DataTextField = "VMS_MSP"
+            lbVMS.DataValueField = "VMS_MSP"
+            lbVMS.DataSource = MyData.ExecuteQuerySelectDT(sSQL)
+            lbVMS.DataBind()
+            lbVMS.Items.Insert(0, keyword_ALL)
+            lbVMS.SelectedIndex = 0
+
+            ddlZipCodeMiles.Items.Clear()
+            For MyLoop As Integer = 0 To 1000
+                ddlZipCodeMiles.Items.Add(MyLoop.ToString)
+            Next
+            ddlZipCodeMiles.SelectedIndex = 10
+
+        Catch ex As Exception
+            ShowAlert(ex.Message)
+        End Try
+
+    End Sub
+
+#End Region
+
+#Region "Helpers"
+
+    Private Sub ShowAlert(ByVal Info As String)
+        lblResult.Text = Info
+        lblResult2.Text = Info
+        lblResult.Visible = True
+        lblResult2.Visible = True
+    End Sub
+
+#End Region
+
+#Region "Buttons"
+
+    Private Sub EnableButtons(ByVal Enable As Boolean)
+
+        btnSearch.Enabled = Enable
+        btnClear.Enabled = Enable
+
+        btnSelectAll.Enabled = Enable
+        btnSelectAll2.Enabled = Enable
+        btnEmail1.Enabled = Enable
+        btnEmail2.Enabled = Enable
+        btnClearEmail1.Enabled = Enable
+        btnClearEmail2.Enabled = Enable
+
+    End Sub
+
+    Protected Sub btnSearch_Click(sender As Object, e As EventArgs) Handles btnSearch.Click
+        pnlSearch.Visible = True
+        EnableButtons(False)
+    End Sub
+
+    Protected Sub btnOK_Click(sender As Object, e As EventArgs) Handles btnOK.Click
+
+        If Not cbOpen.Checked And Not cbClosed.Checked Then
+            ShowAlert("You must select at least Open or Closed.")
+            Exit Sub
+        End If
+
+        lblResult.Visible = False
+        lblResult2.Visible = False
+
+        pnlSearch.Visible = False
+        JobList.AllowPaging = True
+
+        Dim JobEntryCountSQL As String = ""
+        Dim TotalJobCountSQL As String = ""
+
+        SqlDataSourceSpecialty.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+
+        SqlDataSource1.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSource1.SelectCommand = FilteredSQL(JobEntryCountSQL, TotalJobCountSQL)
+
+        SqlDataSource_JobEntryCount.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSource_JobEntryCount.SelectCommand = JobEntryCountSQL
+
+        SqlDataSource_TotalJobCount.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSource_TotalJobCount.SelectCommand = TotalJobCountSQL
+
+        Dim dvJobEntries As DataView
+        dvJobEntries = CType(SqlDataSource_JobEntryCount.Select(DataSourceSelectArguments.Empty), DataView)
+        Dim dvTotalJobs As DataView
+        dvTotalJobs = CType(SqlDataSource_TotalJobCount.Select(DataSourceSelectArguments.Empty), DataView)
+
+        JobList.DataBind()
+
+        Dim ShowJobEntryCount As Integer = 0
+        Dim ShowTotalJobCount As Integer = 0
+
+        Try
+            ShowJobEntryCount = CType(dvJobEntries.Table.Rows(0)(0), Integer)
+            btnEmailAll1.Enabled = False
+            btnEmailAll2.Enabled = False
+            If ShowJobEntryCount > 0 And ShowJobEntryCount < MAX_EMAIL_JOBS Then
+                btnEmailAll1.Enabled = True
+                btnEmailAll2.Enabled = True
+                JobList.AllowPaging = False
+            End If
+        Catch
+        End Try
+        Try
+            ShowTotalJobCount = CType(dvTotalJobs.Table.Rows(0)(0), Integer)
+        Catch
+        End Try
+
+        Count.Text = "Job Entries: " & ShowJobEntryCount & "  Total Jobs: " & ShowTotalJobCount
+
+        EnableButtons(True)
+
+    End Sub
+
+    Protected Sub btnCancel_Click(sender As Object, e As EventArgs) Handles btnCancel.Click
+        pnlSearch.Visible = False
+        EnableButtons(True)
+    End Sub
+
+    Protected Sub btnClear_Click(sender As Object, e As EventArgs) Handles btnClear.Click
+
+        cbHotJob.Checked = False
+        ChkAutooffer.Checked = False
+        cbOpen.Checked = True
+        cbClosed.Checked = False
+        txtJobID.Text = ""
+        txtZipCode.Text = ""
+        rbTimeAll.Checked = True
+        rbCompactStates.Checked = False
+        rbWalkThroughStates.Checked = False
+        rbAllStates.Checked = True
+
+        JobList.AllowPaging = True
+
+        '--------------
+        ' Val, Group#, name
+        ' 0,-,ALL
+        ' 1,1,trustaff Travel Nursing
+        ' 2,2,trustaff Healthcare Solutions (THS)
+        ' 3,3,Executive(Division)
+
+        Select Case lblDepartment.Text
+            Case "Solutions" ', "THS", "Executive Search"
+                rbCompTHS.Checked = True ' 2013-06-15 JM: Updated Solutions flag to be Internal Group
+        End Select
+
+        '--------------
+
+        SetSearchForm(lbDivision)
+        SetSearchForm(lbProfession)
+        SetSearchForm(lbSpecialty)
+        SetSearchForm(lbState)
+        SetSearchForm(lbFacility)
+        SetSearchForm(lbAcctManager)
+        SetSearchForm(lbRegistry)
+
+        Dim JobEntryCountSQL As String = ""
+        Dim TotalJobCountSQL As String = ""
+
+        SqlDataSource1.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSource1.SelectCommand = FilteredSQL(JobEntryCountSQL, TotalJobCountSQL)
+
+        SqlDataSource_JobEntryCount.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSource_JobEntryCount.SelectCommand = JobEntryCountSQL
+
+        SqlDataSource_TotalJobCount.ConnectionString = My.Settings.ConnMED & CType(Session(ses_Password), String)
+        SqlDataSource_TotalJobCount.SelectCommand = TotalJobCountSQL
+
+        Dim dvJobEntries As DataView
+        dvJobEntries = CType(SqlDataSource_JobEntryCount.Select(DataSourceSelectArguments.Empty), DataView)
+        Dim dvTotalJobs As DataView
+        dvTotalJobs = CType(SqlDataSource_TotalJobCount.Select(DataSourceSelectArguments.Empty), DataView)
+
+        JobList.DataBind()
+
+        Dim ShowJobEntryCount As Integer = 0
+        Dim ShowTotalJobCount As Integer = 0
+
+        Try
+            ShowJobEntryCount = CType(dvJobEntries.Table.Rows(0)(0), Integer)
+            btnEmailAll1.Enabled = False
+            btnEmailAll2.Enabled = False
+            If ShowJobEntryCount > 0 And ShowJobEntryCount <= MAX_EMAIL_JOBS Then
+                btnEmailAll1.Enabled = True
+                btnEmailAll2.Enabled = True
+            End If
+        Catch
+        End Try
+        Try
+            ShowTotalJobCount = CType(dvTotalJobs.Table.Rows(0)(0), Integer)
+        Catch
+        End Try
+
+        Count.Text = "Job Entries: " & ShowJobEntryCount & "  Total Jobs: " & ShowTotalJobCount
+
+    End Sub
+
+    Protected Sub btnEmail_Click(sender As Object, e As EventArgs) Handles btnEmail1.Click, btnEmail2.Click
+
+        Dim JobsSelected As Boolean = False
+        Dim Row As GridViewRow
+        Dim MyJobList As New List(Of Integer)
+
+        For Each Row In JobList.Rows
+
+            If CType(Row.FindControl("chkEmail"), CheckBox).Checked Then
+
+
+                MyJobList.Add(CType(Row.Cells(Column_TSJobID).Text, Integer))
+                JobsSelected = True
+
+            End If
+
+        Next
+
+        If JobsSelected Then
+            Session(ses_EmailJobList) = MyJobList
+            Session(ses_EmailJobListNoPayOption) = False
+            Session(ses_EmailJobListAdvNoPayOption) = False
+            Session(ses_EmailJobListWithFacility) = False
+            Response.Write("<script>window.open('" & page_EmailJobs & "','_blank');</script>")
+        End If
+
+    End Sub
+
+    Protected Sub btnEmailAll_Click(sender As Object, e As EventArgs) Handles btnEmailAll1.Click, btnEmailAll2.Click
+
+        Dim JobsSelected As Boolean = False
+        Dim Row As GridViewRow
+        Dim MyJobList As New List(Of Integer)
+
+        For Each Row In JobList.Rows
+
+            MyJobList.Add(CType(Row.Cells(Column_TSJobID).Text, Integer))
+            JobsSelected = True
+
+        Next
+
+        If JobsSelected Then
+            Session(ses_EmailJobList) = MyJobList
+            Session(ses_EmailJobListNoPayOption) = False
+            Session(ses_EmailJobListAdvNoPayOption) = False
+            Session(ses_EmailJobListWithFacility) = False
+            Response.Write("<script>window.open('" & page_EmailJobs & "','_blank');</script>")
+        End If
+
+        'Dim MyJobList As New List(Of Integer)
+        'Dim MyData As New TruData.TruData(My.Settings.Server, My.Settings.Database, My.Settings.Username, CType(Session(ses_Password), String))
+        'Dim DR As SqlClient.SqlDataReader = Nothing
+
+        'Try
+        '    MyData.OpenConnection()
+        '    DR = MyData.ExecuteQuerySelect_SQL(Session(ses_LastSQL).ToString)
+
+        '    While DR.Read
+        '        MyJobList.Add(DR.GetInt32(DR.GetOrdinal("pk_JobRequestID")))
+        '    End While
+        '    DR.Close()
+
+        '    Session(ses_EmailJobList) = MyJobList
+        '    Response.Write("<script>window.open('" & page_EmailJobs & "','_blank');</script>")
+
+        'Catch ex As Exception
+        '    ShowAlert(ex.Message)
+        'Finally
+        '    Try
+        '        If Not MyData.IsClosed Then
+        '            MyData.CloseConnection()
+        '        End If
+        '    Catch
+        '    End Try
+        '    MyData = Nothing
+        'End Try
+
+    End Sub
+
+    Protected Sub btnEmail1AdvNoPay_Click(sender As Object, e As EventArgs) Handles btnEmail1AdvNoPay.Click, btnEmail2AdvNoPay.Click
+
+        Dim JobsSelected As Boolean = False
+        Dim Row As GridViewRow
+        Dim MyJobList As New List(Of Integer)
+
+        For Each Row In JobList.Rows
+
+            If CType(Row.FindControl("chkEmail"), CheckBox).Checked Then
+
+
+                MyJobList.Add(CType(Row.Cells(Column_TSJobID).Text, Integer))
+                JobsSelected = True
+
+            End If
+
+        Next
+
+        If JobsSelected Then
+            Session(ses_EmailJobList) = MyJobList
+            Session(ses_EmailJobListNoPayOption) = False
+            Session(ses_EmailJobListAdvNoPayOption) = True
+            Session(ses_EmailJobListWithFacility) = False
+            Response.Write("<script>window.open('" & page_EmailJobs & "','_blank');</script>")
+        End If
+
+    End Sub
+
+    Protected Sub btnEmailWithFacility1_Click(sender As Object, e As EventArgs) Handles btnEmailWithFacility1.Click, btnEmailWithFacility2.Click
+
+        Dim JobsSelected As Boolean = False
+        Dim Row As GridViewRow
+        Dim MyJobList As New List(Of Integer)
+
+        For Each Row In JobList.Rows
+
+            If CType(Row.FindControl("chkEmail"), CheckBox).Checked Then
+
+
+                MyJobList.Add(CType(Row.Cells(Column_TSJobID).Text, Integer))
+                JobsSelected = True
+
+            End If
+
+        Next
+
+        If JobsSelected Then
+            Session(ses_EmailJobList) = MyJobList
+            Session(ses_EmailJobListNoPayOption) = False
+            Session(ses_EmailJobListAdvNoPayOption) = False
+            Session(ses_EmailJobListWithFacility) = True
+            Response.Write("<script>window.open('" & page_EmailJobs & "','_blank');</script>")
+        End If
+
+    End Sub
+
+    Protected Sub btnEmailAllAdvNoPay_Click(sender As Object, e As EventArgs) Handles btnEmailAll1AdvNoPay.Click, btnEmailAll2AdvNoPay.Click
+
+        Dim JobsSelected As Boolean = False
+        Dim Row As GridViewRow
+        Dim MyJobList As New List(Of Integer)
+
+        For Each Row In JobList.Rows
+
+            MyJobList.Add(CType(Row.Cells(Column_TSJobID).Text, Integer))
+            JobsSelected = True
+
+        Next
+
+        If JobsSelected Then
+            Session(ses_EmailJobList) = MyJobList
+            Session(ses_EmailJobListNoPayOption) = True
+            Session(ses_EmailJobListAdvNoPayOption) = False
+            Session(ses_EmailJobListWithFacility) = False
+            Response.Write("<script>window.open('" & page_EmailJobs & "','_blank');</script>")
+        End If
+
+    End Sub
+
+    Protected Sub btnEmail1NoPay_Click(sender As Object, e As EventArgs) Handles btnEmail1NoPay.Click, btnEmail2NoPay.Click
+
+        Dim JobsSelected As Boolean = False
+        Dim Row As GridViewRow
+        Dim MyJobList As New List(Of Integer)
+
+        For Each Row In JobList.Rows
+
+            If CType(Row.FindControl("chkEmail"), CheckBox).Checked Then
+
+
+                MyJobList.Add(CType(Row.Cells(Column_TSJobID).Text, Integer))
+                JobsSelected = True
+
+            End If
+
+        Next
+
+        If JobsSelected Then
+            Session(ses_EmailJobList) = MyJobList
+            Session(ses_EmailJobListNoPayOption) = True
+            Session(ses_EmailJobListAdvNoPayOption) = True
+            Session(ses_EmailJobListWithFacility) = False
+            Response.Write("<script>window.open('" & page_EmailJobs & "','_blank');</script>")
+        End If
+
+    End Sub
+
+    Protected Sub btnEmailAll1NoPay_Click(sender As Object, e As EventArgs) Handles btnEmailAll1NoPay.Click, btnEmailAll2NoPay.Click
+
+        Dim JobsSelected As Boolean = False
+        Dim Row As GridViewRow
+        Dim MyJobList As New List(Of Integer)
+
+        For Each Row In JobList.Rows
+
+            MyJobList.Add(CType(Row.Cells(Column_TSJobID).Text, Integer))
+            JobsSelected = True
+
+        Next
+
+        If JobsSelected Then
+            Session(ses_EmailJobList) = MyJobList
+            Session(ses_EmailJobListNoPayOption) = True
+            Session(ses_EmailJobListAdvNoPayOption) = True
+            Session(ses_EmailJobListWithFacility) = False
+            Response.Write("<script>window.open('" & page_EmailJobs & "','_blank');</script>")
+        End If
+
+    End Sub
+
+    Protected Sub btnSelectAll_Click(sender As Object, e As EventArgs) Handles btnSelectAll.Click
+
+        Dim Row As GridViewRow
+        For Each Row In JobList.Rows
+            CType(Row.FindControl("chkEmail"), CheckBox).Checked = True
+        Next
+
+    End Sub
+
+    Protected Sub btnClearEmail_Click(sender As Object, e As EventArgs) Handles btnClearEmail1.Click, btnClearEmail2.Click
+
+        Dim Row As GridViewRow
+        For Each Row In JobList.Rows
+            If CType(Row.FindControl("chkEmail"), CheckBox).Checked Then
+                CType(Row.FindControl("chkEmail"), CheckBox).Checked = False
+            End If
+        Next
+
+        Session(ses_EmailJobList) = Nothing
+
+    End Sub
+
+    Protected Sub btnCloseSelected1_Click(sender As Object, e As EventArgs) Handles btnCloseSelected1.Click, btnCloseSelected2.Click
+
+        Dim MyJobList As New List(Of Integer)
+        Dim JobsSelected As Boolean = False
+        Dim Row As GridViewRow
+
+        Try
+
+            For Each Row In JobList.Rows
+
+                If CType(Row.FindControl("chkEmail"), CheckBox).Checked Then
+
+                    MyJobList.Add(CType(Row.Cells(Column_TSJobID).Text, Integer))
+                    JobsSelected = True
+
+                End If
+
+            Next
+
+            Session(ses_CloseJobList) = MyJobList
+            If JobsSelected Then
+                Response.Redirect(page_CloseJobs)
+                'Response.Write("<script>window.open('" & page_EmailJobs & "','_blank');</script>")
+            End If
+
+        Catch ex As Exception
+            ShowAlert(ex.Message)
+        End Try
+
+    End Sub
+
+    Protected Sub btnMapSelected1_Click(sender As Object, e As EventArgs) Handles btnMapSelected1.Click, btnMapSelected2.Click
+
+        Dim JobsSelected As Boolean = False
+        Dim Row As GridViewRow
+        Dim MyData As New TruData.TruData(My.Settings.Server, My.Settings.Database, My.Settings.Username, CType(Session(ses_Password), String))
+        Dim MyDT As DataTable = Nothing
+        Dim MyDR As DataRow
+        Dim SQL = "SELECT jr.pk_JobRequestID, c1.ADDRESS1, CASE WHEN jr.[MCCity] IS NOT NULL THEN jr.[MCCity] ELSE c1.[CITY] END AS 'CITY', CASE WHEN jr.[MCState] IS NOT NULL THEN jr.[MCState] ELSE c1.[STATE] END AS 'STATE', c1.ZIP FROM JobRequests jr INNER JOIN CONTACT1 c1 ON jr.fk_ClientID = c1.ID WHERE jr.pk_JobRequestID = "
+        Dim Addresses As String = ""
+        Dim FinalAddress As String = ""
+
+        Try
+
+            MyData.OpenConnection()
+
+            For Each Row In JobList.Rows
+
+                If CType(Row.FindControl("chkEmail"), CheckBox).Checked Then
+
+                    MyDT = MyData.ExecuteQuerySelectDT(SQL & CType(Row.Cells(Column_TSJobID).Text, Integer))
+                    For Each MyDR In MyDT.Rows
+                        Addresses &= MyDR(1).ToString.Trim & "+" & MyDR(2).ToString.Trim & "+" & MyDR(3).ToString.Trim & "+" & MyDR(4).ToString.Trim & "/"
+                    Next
+
+
+                    JobsSelected = True
+
+                End If
+
+            Next
+
+            If JobsSelected Then
+                FinalAddress = "https://www.google.com/maps/dir/" & Addresses
+                Response.Write("<script>window.open('" & FinalAddress & "','_blank');</script>")
+            End If
+
+        Catch ex As Exception
+            ShowAlert(ex.Message)
+        Finally
+            Try
+                If Not MyData.IsClosed Then
+                    MyData.CloseConnection()
+                End If
+            Catch
+            End Try
+        End Try
+
+
+    End Sub
+
+#End Region
+
+#Region "Data"
+
+    Function FilteredSQL(ByRef JobEntryCountSQL As String, ByRef TotalJobCountSQL As String) As String
+        Dim sQuery As String = ""
+        Dim sQueryJobEntries As String = ""
+        Dim sQueryTotalJobs As String = ""
+        Dim sFrom As String = ""
+        Dim sWhere As String = ""
+        Dim sGroup As String = ""
+        Dim sState As String = ""
+        Dim CheckZipRadius As Boolean = False
+        Dim NoTier As Boolean = False
+        Dim NoSwatTier As Boolean = False
+
+        If rbCompactStates.Checked Then
+            'add ONLY 'compact states' to where clause and ignore listbox
+            sState = "  (STATE"
+            sState = sState + " in ('AL','AR','AZ','CO','DE','FL','GA','IA','ID','IN','KS','KY','LA','MD','ME','MO','MS','MT','NC','ND','NE','NH','NM','OK','SC','SD','TN','TX','UT','VA','WI','WY','WV'))"
+        ElseIf rbWalkThroughStates.Checked Then
+            'add ONLY 'walk-through states' to where clause and ignore listbox
+            sState = "  (STATE"
+            sState = sState + " in ('AZ','HI','LA','MO','NV','SC'))"
+        Else
+            'read listbox and add each item to where clause
+            sState = ListBoxSQLstring(lbState, "STATE", sState)
+        End If
+
+        sQuery = "SELECT pk_JobRequestID, InternalUserGroup, RegistryName, RegistryID, MktgPosting, COMPANY, CITY, STATE, ZIP, dateUpdated, SpecialtyName, ProfessionName, DivisionName, RegistryPrivateID, StatusName, InternalDescription, Guarantee, NumOpenings, dateNeeded, AllInclusivePayRate, EstimatedExpenses, OvertimePayRate, TaxAdvPayRateNoTax, TaxAdvPayRateTax, SettingName, Beds, Shiftt, Duration, Total" + _
+                  ", AM, Salary, ADDRESS1, Tier, AccuratePay, Status, Shift,[pk_DivisionID],[pk_ProfessionID],[pk_SpecialtyID],[pk_SettingID],[VMS_MSP], BillRate, TaxAdvPayRateNoTaxHourly, health_system, SWAT_Tier  "
+        sQueryJobEntries = "SELECT Count(*) "
+        sQueryTotalJobs = "SELECT SUM(NumOpenings) "
+
+        sFrom = " FROM V_Jobboard "
+
+        If cbOpen.Checked And Not cbClosed.Checked Then
+            CheckZipRadius = True
+            If cbHotJob.Checked Then
+                sWhere = " WHERE (Status = 'Hot') "
+            ElseIf ChkAutooffer.Checked Then
+                sWhere = " WHERE (Status = 'Auto offer') "
+            Else
+                sWhere = " WHERE ((Status = 'Open') OR (Status = 'Hot') OR (Status = 'Auto offer')) "
+            End If
+        ElseIf Not cbOpen.Checked And cbClosed.Checked Then
+            sWhere = " WHERE (Status = 'Closed') "
+        ElseIf cbOpen.Checked And cbClosed.Checked Then
+            sWhere = ""
+        Else
+            ShowAlert("FilteredSQL: This should never happen.")
+        End If
+
+        ' 2013-06-15 JM: Converted solutions flag to InternalUserGroup
+        If Not rbCompAll.Checked Then
+            If sWhere = "" Then
+                sWhere = sWhere + " WHERE (InternalUserGroup = "
+            Else
+                sWhere = sWhere + " AND (InternalUserGroup = "
+            End If
+            If rbCompNursing.Checked Then
+                sWhere = sWhere + " 1) "
+            ElseIf rbCompTHS.Checked Then
+                sWhere = sWhere + " 2) "
+            Else
+                sWhere = sWhere + " 3) "
+            End If
+        End If
+
+        Dim TierClause As String = ""
+
+        If cbTier1.Checked Then
+            TierClause = "'1'"
+        End If
+        If cbTier2.Checked Then
+            If TierClause = "" Then
+                TierClause = "'2'"
+            Else
+                TierClause &= ",'2'"
+            End If
+        End If
+        If cbTier3.Checked Then
+            If TierClause = "" Then
+                TierClause = "'3'"
+            Else
+                TierClause &= ",'3'"
+            End If
+        End If
+        If cbTier4.Checked Then
+            If TierClause = "" Then
+                TierClause = "'4'"
+            Else
+                TierClause &= ",'4'"
+            End If
+        End If
+        If cbTier5.Checked Then
+            If TierClause = "" Then
+                TierClause = "'5'"
+            Else
+                TierClause &= ",'5'"
+            End If
+        End If
+        If cbTierNoTier.Checked Then
+            NoTier = True
+        End If
+
+        If TierClause <> "" Or NoTier Then
+
+            If NoTier Then
+
+                If TierClause = "" Then
+
+                    If sWhere = "" Then
+                        sWhere = " WHERE (Tier IS NULL OR Tier = '') "
+                    Else
+                        sWhere &= " AND (Tier IS NULL OR Tier = '') "
+                    End If
+
+                Else
+
+                    If sWhere = "" Then
+                        sWhere = " WHERE (Tier IN (" & TierClause & ") OR (Tier IS NULL OR Tier = '')) "
+                    Else
+                        sWhere &= " AND (Tier IN (" & TierClause & ") OR (Tier IS NULL OR Tier = '')) "
+                    End If
+
+                End If
+
+            Else
+
+                If TierClause <> "" Then
+
+                    If sWhere = "" Then
+                        sWhere = " WHERE Tier IN (" & TierClause & ") "
+                    Else
+                        sWhere &= " AND Tier IN (" & TierClause & ") "
+                    End If
+
+                End If
+
+            End If
+
+        End If
+
+        'If rbVMSSWAT.Checked Then
+
+        '    Dim SwatTierClause As String = ""
+
+        '    If cbSwatTierA.Checked Then
+        '        SwatTierClause = "'A'"
+        '    End If
+        '    If cbSwatTierB.Checked Then
+        '        If SwatTierClause = "" Then
+        '            SwatTierClause = "'B'"
+        '        Else
+        '            SwatTierClause &= ",'B'"
+        '        End If
+        '    End If
+        '    If cbSwatTierC.Checked Then
+        '        If SwatTierClause = "" Then
+        '            SwatTierClause = "'C'"
+        '        Else
+        '            SwatTierClause &= ",'C'"
+        '        End If
+        '    End If
+        '    If cbSwatTierD.Checked Then
+        '        If SwatTierClause = "" Then
+        '            SwatTierClause = "'D'"
+        '        Else
+        '            SwatTierClause &= ",'D'"
+        '        End If
+        '    End If
+        '    If cbSwatNoTier.Checked Then
+        '        NoSwatTier = True
+        '    End If
+
+        '    If SwatTierClause <> "" Or NoSwatTier Then
+
+        '        If NoSwatTier Then
+
+        '            If SwatTierClause = "" Then
+
+        '                If sWhere = "" Then
+        '                    sWhere = " WHERE (Swat_Tier IS NULL OR Swat_Tier = '') "
+        '                Else
+        '                    sWhere &= " AND (Swat_Tier IS NULL OR Swat_Tier = '') "
+        '                End If
+
+        '            Else
+
+        '                If sWhere = "" Then
+        '                    sWhere = " WHERE (Swat_Tier IN (" & SwatTierClause & ") OR (Swat_Tier IS NULL OR Swat_Tier = '')) "
+        '                Else
+        '                    sWhere &= " AND (Swat_Tier IN (" & SwatTierClause & ") OR (Swat_Tier IS NULL OR Swat_Tier = '')) "
+        '                End If
+
+        '            End If
+
+        '        Else
+
+        '            If SwatTierClause <> "" Then
+
+        '                If sWhere = "" Then
+        '                    sWhere = " WHERE Swat_Tier IN (" & SwatTierClause & ") "
+        '                Else
+        '                    sWhere &= " AND Swat_Tier IN (" & SwatTierClause & ") "
+        '                End If
+
+        '            End If
+
+        '        End If
+
+        '    End If
+
+        'End If
+
+
+
+        sWhere = sWhere + ListBoxSQLstring(lbDivision, "pk_DivisionID", sWhere)
+        sWhere = sWhere + ListBoxSQLstring(lbProfession, "pk_ProfessionID", sWhere)
+        sWhere = sWhere + ListBoxSQLstring(lbSpecialty, "pk_SpecialtyID", sWhere)
+        'sWhere = sWhere + ListBoxSQLstring(lbSetting, "pk_SettingID", sWhere)
+        sWhere = sWhere + ListBoxSQLstring(lbRegistry, "RegistryName", sWhere)
+        sWhere = sWhere + ListBoxSQLstring(lbVMS, "VMS_MSP", sWhere)
+
+        sWhere = sWhere + ListBoxSQLstring(lbFacility, "ID", sWhere)
+        sWhere = sWhere + ListBoxSQLstring(lbAcctManager, "Key4", sWhere)
+
+        If CheckZipRadius Then
+            If txtZipCode.Text.Trim <> "" Then
+
+                ' Get list of zip codes in range
+                Dim MyData As New TruData.TruData(My.Settings.Server, My.Settings.HelpdeskDatabase, My.Settings.Username, CType(Session(ses_Password), String))
+                Dim dt As New DataTable
+                Dim Zips As String = ""
+
+                Try
+                    MyData.OpenConnection()
+                    MyData.QueryTimeout = 0
+                    MyData.ResetParams()
+                    MyData.AddInParam("ZipCode", txtZipCode.Text.Trim)
+                    MyData.AddInParam("RadiusMile", ddlZipCodeMiles.Text)
+                    dt = MyData.ExecuteProcedureDT_SQL("ZipSearchZipOnly")
+
+                    For MyLoop As Integer = 0 To dt.Rows.Count - 1
+                        If MyLoop = 0 Then
+                            Zips = "'" & dt.Rows(MyLoop).Item(0) & "'"
+                        Else
+                            Zips &= ", '" & dt.Rows(MyLoop).Item(0) & "'"
+                        End If
+                    Next
+
+                    sWhere &= " AND ZIP in (" & Zips & ") "
+
+                Catch ex As Exception
+                    ShowAlert("Error getting Zip Code range: " & ex.Message)
+                Finally
+                    Try
+                        If Not MyData.IsClosed Then
+                            MyData.CloseConnection()
+                        End If
+                    Catch
+                    End Try
+                End Try
+            End If
+        End If
+
+        If Not rbTimeAll.Checked Then
+
+            If rbAM.Checked Then
+                If sWhere = "" Then
+                    sWhere = " WHERE Shift in (172, 174, 175, 178, 181, 296, 301) "
+                Else
+                    sWhere &= " AND Shift in (172, 174, 175, 178, 181, 296, 301) "
+                End If
+            ElseIf rbPM.Checked Then
+                If sWhere = "" Then
+                    sWhere = " WHERE Shift in (173, 174, 176, 177, 179, 180, 297, 301) "
+                Else
+                    sWhere &= " AND Shift in (173, 174, 176, 177, 179, 180, 297, 301) "
+                End If
+            Else
+                ' Full Time
+                If sWhere = "" Then
+                    sWhere = " WHERE Shift = 555 "
+                Else
+                    sWhere &= " AND Shift = 555 "
+                End If
+            End If
+
+        End If
+
+        If txtJobID.Text.Trim <> "" Then
+            If sWhere = "" Then
+                sWhere = " Where pk_JobRequestID=" + txtJobID.Text + " "
+            Else
+                sWhere &= " AND pk_JobRequestID=" + txtJobID.Text + " "
+            End If
+        End If
+
+        '----- for debugging
+        'Response.Write("Where Clause is:" + sWhere)
+
+        If sState <> "" Then
+            If sWhere = "" Then
+                sWhere = " WHERE " & sState
+            Else
+                sWhere &= " AND " & sState
+            End If
+        End If
+
+        If rbVMSSWAT.Checked Then
+
+            If sWhere = "" Then
+                sWhere = " WHERE "
+            Else
+                sWhere &= " AND "
+            End If
+            sWhere &= "" &
+                    "(VMS_MSP in ('HealthTrust','Vizient','Rightsourcing') " &
+                    "or (company like '%university of cincinnati%') " &
+                    "or (company like 'select spec%' and Facility_Status like 'Facility Act%' and VMS_MSP like 'Direct%') " &
+                    "or (COMPANY like 'Lois M. Deberry%') " &
+                    "or (Health_System = 'Mercy Health System') " &
+                    "or ((COMPANY = 'The Jewish Hospital - Mercy Health') or (COMPANY = 'Mercy Health The Jewish Hospital')) " &
+                    "or (COMPANY = 'mercy health fairfield hospital') " &
+                    "or (COMPANY = 'Mercy Health Clermont Hospital') " &
+                    "or (COMPANY = 'Mercy Health Anderson Hospital') " &
+                    "or (COMPANY = 'Mercy Health West Hospital') " &
+                    "or (COMPANY = 'Rideout Health Group') " &
+                    "or (HEALTH_SYSTEM = 'cox health')" &
+                    ")"
+
+        ElseIf rbVMSNonSWAT.Checked Then
+
+            If sWhere = "" Then
+                sWhere = " WHERE "
+            Else
+                sWhere &= " AND "
+            End If
+            sWhere &= "" &
+                    "(VMS_MSP not in ('HealthTrust','Vizient','Rightsourcing') " &
+                    "and (company not like '%university of cincinnati%') " &
+                    "and not (company like 'select spec%' and Facility_Status like 'Facility Act%' and VMS_MSP like 'Direct%') " &
+                    "and (COMPANY not like 'Lois M. Deberry%') " &
+                    "and (Health_System <> 'Mercy Health System') " &
+                    "and not ((COMPANY = 'The Jewish Hospital - Mercy Health') or (COMPANY = 'Mercy Health The Jewish Hospital')) " &
+                    "and (COMPANY <> 'mercy health fairfield hospital') " &
+                    "and (COMPANY <> 'Mercy Health Clermont Hospital') " &
+                    "and (COMPANY <> 'Mercy Health Anderson Hospital') " &
+                    "and (COMPANY <> 'Mercy Health West Hospital') " &
+                    "and (COMPANY <> 'Rideout Health Group') " &
+                    "and (HEALTH_SYSTEM <> 'cox health')" &
+                    ")"
+
+        End If
+
+        FilteredSQL = sQuery + sFrom + sWhere + sGroup + " ORDER BY dateNeeded Desc"
+        JobEntryCountSQL = sQueryJobEntries + sFrom + sWhere
+        TotalJobCountSQL = sQueryTotalJobs + sFrom + sWhere
+
+        Session(ses_LastSQL) = FilteredSQL
+        Session(ses_LastSQLJobEntries) = JobEntryCountSQL
+        Session(ses_LastSQLTotalJobs) = TotalJobCountSQL
+
+    End Function
+
+    Function ListBoxSQLstring(ByRef FormListBox As ListBox, ByVal SQLcol As String, ByVal CurrentWhereClause As String) As String
+        ' This function creates the sql string for the where clause from a listbox
+
+        ListBoxSQLstring = ""
+        Dim strList As String = ""
+        Dim Item As ListItem
+
+        If FormListBox.SelectedValue = keyword_ALL Then
+            'add nothing to where clause
+        Else
+            'read listbox and add each item to where clause
+            For Each Item In FormListBox.Items
+                If Item.Selected Then
+                    strList = strList + "'" & Item.Value & "',"
+                End If
+            Next
+            If strList = "" Then
+            Else
+                If SQLcol = "STATE" Then
+                    'ListBoxSQLstring = " AND ((CASE WHEN JobRequests.[MCState] IS NOT NULL THEN JobRequests.[MCState] ELSE RTRIM(CONTACT1.[STATE]) END) in (" + Left(strList, Len(strList) - 1) + ")) "
+                    ListBoxSQLstring = "  (STATE in (" + Left(strList, Len(strList) - 1) + ")) "
+                Else
+                    If CurrentWhereClause.Trim = "" Then
+                        ListBoxSQLstring = " WHERE (" + SQLcol + " in (" + Left(strList, Len(strList) - 1) + ")) "
+                    Else
+                        ListBoxSQLstring = " AND (" + SQLcol + " in (" + Left(strList, Len(strList) - 1) + ")) "
+                    End If
+                End If
+            End If
+        End If
+
+    End Function
+
+    Private Sub SetSearchForm(ByRef FormListBox As ListBox)
+
+        'Preset initial Search Form to match default SQL
+        Try
+            FormListBox.SelectedIndex = 0
+        Catch
+        End Try
+
+        'Divisions: 1=Travel,2=Permanent,3=Government,4=Strike
+        'Professions: 1=Nursing,2=Allied,3=Therapy,4=Pharmacist,5=Physician
+
+        Select Case lblDepartment.Text
+            Case "Nurse & Allied Travel", "Nurse Advocates", "Sales"
+                'Div 1, Prof 1,2
+                lbDivision.SelectedIndex = 1 'Travel
+
+                For Each i As ListItem In lbProfession.Items
+                    If i.Text = "Nursing" Or i.Text = "Allied" Then
+                        i.Selected = True
+                        lbProfession.Items(0).Selected = False
+                    End If
+                Next
+
+            Case "Perm Placement"
+                'Div 1,2 - Prof 2,3,4
+                'ddlDivision.SelectedIndex = 2 'Perm
+
+                For Each i As ListItem In lbDivision.Items
+                    If i.Text = "Travel" Or i.Text = "Permanent" Then
+                        i.Selected = True
+                        lbDivision.Items(0).Selected = False
+                    End If
+                Next
+
+                For Each i As ListItem In lbProfession.Items
+                    If i.Text = "Allied" Or i.Text = "Therapy" Or i.Text = "Pharmacist" Then
+                        i.Selected = True
+                        lbProfession.Items(0).Selected = False
+                    End If
+                Next
+
+            Case "Government"
+                'Div 3
+                lbDivision.SelectedIndex = 3
+
+            Case "Solutions"
+                ' 2013-06-15 JM: Added for Solutions Team to identify their jobs
+                rbCompTHS.Checked = True
+
+            Case Else
+                lbDivision.SelectedIndex = 0 'ALL
+
+        End Select
+
+    End Sub
+
+    Protected Sub JobList_RowCreated(ByVal sender As Object, ByVal e As System.Web.UI.WebControls.GridViewRowEventArgs) Handles JobList.RowCreated
+
+        If e.Row.RowType = DataControlRowType.DataRow Then
+            'Programmatically reference the PopupControlExtender
+            Dim pce As PopupControlExtender = e.Row.FindControl("PopupControlExtender1")
+
+            ' Set the BehaviorID
+            Dim behaviorID As String = String.Concat("pce", e.Row.RowIndex)
+            pce.BehaviorID = behaviorID
+
+            ' Programmatically reference the Image control
+            Dim i As System.Web.UI.WebControls.Image = e.Row.Cells(1).FindControl("imgDescription")
+
+            ' Add the client-side attributes (onmouseover & onmouseout)
+            Dim OnMouseOverScript As String = String.Format("$find('{0}').showPopup();", behaviorID)
+            Dim OnMouseOutScript As String = String.Format("$find('{0}').hidePopup();", behaviorID)
+
+            'i.Attributes.Add("onmouseover", OnMouseOverScript)
+            'i.Attributes.Add("onmouseout", OnMouseOutScript)
+        End If
+
+    End Sub
+
+    Protected Sub ddlSpecialty_DataBound(ByVal sender As Object, ByVal e As System.EventArgs) Handles lbSpecialty.DataBound
+        lbSpecialty.Items.Insert(0, "- ALL -")
+        For Each item As ListItem In lbSpecialty.Items
+            item.Selected = False
+        Next
+        lbSpecialty.Items(0).Selected = True
+
+    End Sub
+
+    Protected Function ShowPrivateID(ByVal RegistryID As String, ByVal RegistryPrivateID As String) As String
+        Dim PrivateID2display As String = ""
+
+
+        'If RegistryID <> "27" Then 'Focus One
+        '    PrivateID2display = RegistryPrivateID
+        'End If
+
+        PrivateID2display = RegistryPrivateID
+
+        Return PrivateID2display
+    End Function
+
+#End Region
+
+    Private Sub SqlDataSource1_Selecting(sender As Object, e As SqlDataSourceSelectingEventArgs) Handles SqlDataSource1.Selecting
+        ' This will allow more time to process large zip radius searched
+        e.Command.CommandTimeout = 300
+    End Sub
+
+    Private Sub SqlDataSource_JobEntryCount_Selecting(sender As Object, e As SqlDataSourceSelectingEventArgs) Handles SqlDataSource_JobEntryCount.Selecting
+        e.Command.CommandTimeout = 300
+    End Sub
+
+    Private Sub SqlDataSource_TotalJobCount_Selecting(sender As Object, e As SqlDataSourceSelectingEventArgs) Handles SqlDataSource_TotalJobCount.Selecting
+        e.Command.CommandTimeout = 300
+    End Sub
+
+    Protected Sub lbBllind_Click(sender As Object, e As EventArgs) Handles lbBllind.Click
+
+        Dim MyLink As String = "https://esig.trustaff.com/trustaffportal/submittals/TravelJbBlindSubmittal.aspx?userid=" & Session(ses_UserID).ToString
+        Response.Write("<script>window.open('" & MyLink & "','_blank');</script>")
+
+    End Sub
+    Public Function ShowCalculator(JobID As Integer) As String
+        Dim strReturn As String = ""
+        Dim Username As String = Request.QueryString("Userid")
+        Username = clsJBReporting.getTempNewCalcUsers(Username)
+        Try
+            '<a href="JavaScript:newPopup('http://10.240.3.5/dashboard?jobId=<%# DataBinder.Eval(Container.DataItem, "pk_JobRequestID")%>'
+
+            If (Username.ToString() = String.Empty) Then
+                strReturn = "<a href='JavaScript:newPopup('http://margins.trustaff.com/?JobReqId=" & JobID & "');'>'</a>"
+            Else
+                strReturn = "<a href='JavaScript:newPopup('http://10.240.3.5/dashboard?jobId=" & JobID & "');'>'</a>"
+            End If
+
+        Catch ex As Exception
+
+        End Try
+        Return strReturn
+    End Function
+
+    Private Sub JobList_RowCommand(sender As Object, e As GridViewCommandEventArgs) Handles JobList.RowCommand
+
+        Try
+            Dim strReturn As String = ""
+            Dim Username As String = ""
+            Username = clsJBReporting.getTempNewCalcUsers(Request.QueryString("userid").Trim)
+            Select Case e.CommandName
+                Case "ViewCalc"
+                    If (Len(Username.ToString()) <= 0) Then
+                        strReturn = "http://margins.trustaff.com/?JobReqId=" & CInt(e.CommandArgument)
+                    Else
+                        strReturn = "http://10.240.3.5/dashboard?jobId=" & CInt(e.CommandArgument)
+                    End If
+                    Response.Write("<script>window.open('" & strReturn & "','_blank');</script>")
+
+                Case Else
+            End Select
+        Catch ex As Exception
+            Response.Write(ex.Message)
+        End Try
+    End Sub
+End Class

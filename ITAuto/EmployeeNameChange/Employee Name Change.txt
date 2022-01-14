@@ -1,0 +1,138 @@
+-- RUN THESE SELECTS TO SEE WHERE THEY WILL NEED UPDATING--
+
+--Select * from wng2.dbo.[user] where wuname = 'tgreer'
+--Update wng2.dbo.[user] set lastname = 'Wright', WUNAME = 'twright'  where uid = ' '
+
+
+--Select * from wng2.dbo.recruiter_emails where firstname = 'missy' and lastname = 'persinger'
+--Update wng2.dbo.recruiter_emails set lastname = 'Wright' where rid = ' '
+*Not in SQL below.
+
+--Select * from wng2.dbo.acctmgr where firstname = 'missy' and lastname = 'persinger'
+--Update wng2.dbo.acctmgr set lastname = 'Wright' where aid = ''  
+*Not in SQL below.
+
+--Select * from wng2.dbo.associate where firstname = 'tamyra' and lastname = 'greer'
+--Update wng2.dbo.associate set lastname = 'Wright' where associateid = ''
+*Not in SQL below.
+
+
+--Select * from wng2.dbo.lead where firstname = 'Terri' and lastname = 'Lee'
+--Update wng2.dbo.lead set lastname = 'Wright' where lrid = ''
+*Not in SQL below.
+
+
+--Select * from wng2.dbo.recruiter where firstname = 'Terri' and lastname = 'Lee'
+--Update wng2.dbo.recruiter set lastname = 'Wright' where rid = ' '
+
+--Full Domain login --
+--select * from HR.dbo.Associate where Username = 'tgreer'
+update HR.dbo.Associate set LastName = 'Lyons', Username ='tlyons', Email = 'tlyons@trustaff.com' where AssociateID = '742'  
+*Not in SQL below.
+
+--NAME = FULL NAME
+--select * from ESig.dbo.TeamMembers where GM_Username = 'tgreer'
+--update ESig.dbo.TeamMembers set GM_Username = 'Wright', Name = 'Terri Wright' where TeamMember_ID = ''
+
+--Select * from ESig.dbo.team_lead where firstname = 'Terri' and lastname = 'Lee'
+--Update ESig.dbo.team_lead set lastname = 'Wright' where tlead_id = ''
+
+--Select * from ESig.dbo.team_2nd_frontendrecruiter where firstname = 'Terri' and lastname = 'Lee'
+--Update ESig.dbo. team_2nd_frontendrecruiter set lastname = 'Wright' where tfend_id = ''
+
+--Select * from ESig.dbo.team_frontendrecruiter where firstname = 'Terri' and lastname = 'Lee'
+--Update ESig.dbo. team_frontendrecruiter set lastname = 'Wright' where tfend_id = ''
+--select * from ESig.dbo.Documents where Assigned_By like 'tgreer%'
+-- Here is GM Login "8 Characters"
+update ESig.dbo.Documents set  Assigned_By ='mkdonahu' where Assigned_By ='MPERSING'
+
+
+-- Here down is all GM login "8 Characters" Copy all this and run it from new window-- 
+Declare @oldname nvarchar(50);
+Declare @newname  nvarchar(50);
+Declare @oldnamev varchar(8);
+Declare @newnamev  varchar(8);
+Declare @FullNameOld  VARCHAR(50);
+Declare @FullNameNew VARCHAR(50);
+Declare @emailold VARCHAR(50);
+Declare @emailNew VARCHAR(50);
+Declare @emailoldt nvarchar(50);
+Declare @emailNewt nvarchar(50);
+Declare @emailoldn nvarchar(50);
+Declare @emailNewn nvarchar(50);
+
+Set @oldname  =   'MPERSING'
+Set @newname   = 'MKDONAHU'
+Set @oldnamev  =   'MPERSING'
+Set @newnamev   = 'MKDONAHU'
+Set @FullNameOld   = 'Missy Persinger'
+Set @FullNameNew   = 'Missy Donahue'
+Set @emailold   = 'mpersinger@trustaff.com'
+Set @emailNew   = 'mkdonahue@trustaff.com'
+Set @emailoldt   = 'mpersinger@trustaff.com'
+Set @emailNewt   = 'mkdonahue@trustaff.com'
+Set @emailoldn   = 'mpersinger@trustaff.com'
+Set @emailNewn   = 'mkdonahue@trustaff.com'
+
+-- Chunk these out unless its after hours--
+update Trustaff_Med.dbo.CAL set USERID =  @newnamev where USERID = @oldnamev
+update Trustaff_Med.dbo.CAL set CREATEBY =  @newname where CREATEBY = @oldname
+update Trustaff_Med.dbo.CAL set LASTUSER =  @newname where LASTUSER = @oldname
+update Trustaff_Med.dbo.CALDEF set PRIMARYUSER =  @newname where PRIMARYUSER = @oldname
+update Trustaff_Med.dbo.CALDEF set CREATED_BY =  @newname where CREATED_BY = @oldname
+update Trustaff_Med.dbo.CALDEF set MODIFIED_BY =  @newname where MODIFIED_BY = @oldname
+update Trustaff_Med.dbo.Contact1 set KEY4 =  @newname where KEY4 = @oldname
+update Trustaff_Med.dbo.Contact1 set CREATEBY =  @newname where CREATEBY = @oldname
+update Trustaff_Med.dbo.Contact1 set LASTUSER =  @newname where LASTUSER = @oldname
+update Trustaff_Med.dbo.Contact1 set U_KEY4 =  @newname where U_KEY4 = @oldname
+update Trustaff_Med.dbo.Contact2 set U_GEN10 =  @newname where U_GEN10 = @oldname
+update Trustaff_Med.dbo.Contact2 set U_GENER13 =  @newname where U_GENER13 = @oldname
+update Trustaff_Med.dbo.conthist set USERID =  @newname where USERID = @oldname
+update Trustaff_Med.dbo.conthist set CREATEBY =  @newname where CREATEBY = @oldname
+update Trustaff_Med.dbo.conthist set LASTUSER =  @newname where LASTUSER = @oldname
+update Trustaff_Med.dbo.contsupp set LASTUSER =  @newname where LASTUSER = @oldname
+update Trustaff_Med.dbo.environment set USERID =  @newname where USERID = @oldname
+update Trustaff_Med.dbo.filters set USERID =  @newname where USERID = @oldname
+update Trustaff_Med.dbo.filters set LASTUSER =  @newname where LASTUSER = @oldname
+update Trustaff_Med.dbo.gssites set USERID =  @newname where USERID = @oldname
+update Trustaff_Med.dbo.history set USERID =  @newname where USERID = @oldname
+update Trustaff_Med.dbo.history_item set USERID =  @newname where USERID = @oldname
+update Trustaff_Med.dbo.mailbox set USERID =  @newname where USERID = @oldname
+update Trustaff_Med.dbo.notes set USERID =  @newname where USERID = @oldname
+update Trustaff_Med.dbo.notes set MODIFIEDBY =  @newname where MODIFIEDBY = @oldname
+update Trustaff_Med.dbo.perphone set USERID =  @newname where USERID = @oldname
+update Trustaff_Med.dbo.poptop set USERID =  @newname where USERID = @oldname
+update Trustaff_Med.dbo.poptop set CREATEBY =  @newname where CREATEBY = @oldname
+update Trustaff_Med.dbo.poptop set LASTUSER =  @newname where LASTUSER = @oldname
+update Trustaff_Med.dbo.syslog set USERID =  @newname where USERID = @oldname
+update Trustaff_Med.dbo.sysreps set USERID =  @newname where USERID = @oldname
+update Trustaff_Med.dbo.sysreps set LASTUSER =  @newname where LASTUSER = @oldname
+update Trustaff_Med.dbo.userlog set USERID =  @newname where USERID = @oldname
+update Trustaff_Med.dbo.[users] set USERNAME =  @newname where USERNAME = @oldname
+update Trustaff_Med.dbo.[users] set LASTUSER  =  @newname where LASTUSER = @oldname
+update Trustaff_Med.dbo.[users] set NAME =  @fullnamenew where NAME = @fullnameold
+update Trustaff_Med.dbo.accformdata set Recruiter =  @newname where Recruiter = @oldname
+update Trustaff_Med.dbo.accformdata set ActMgr =  @newname where ActMgr = @oldname
+update Trustaff_Med.dbo.accformdata set rec2 =  @newname where rec2 = @oldname
+update Trustaff_Med.dbo.accformdata2 set Recruiter =  @newname where Recruiter = @oldname
+update Trustaff_Med.dbo.accformdata2 set ActMgr =  @newname where ActMgr = @oldname
+update Trustaff_Med.dbo.accformdata2 set rec2 =  @newname where rec2 = @oldname
+update Trustaff_Med.dbo.facilityoffer set RquestedBy =  @newname where RquestedBy = @oldname
+update Trustaff_Med.dbo.facilityofferchangelog set RquestedBy =  @newname where RquestedBy = @oldname
+update Trustaff_Med.dbo.gmplusviews set GM_Username =  @newname where GM_Username = @oldname
+update Trustaff_Med.dbo.gmplusviews2 set GM_Username =  @newname where GM_Username = @oldname
+update Trustaff_Med.dbo.leadreport set Key4 =  @newname where Key4 = @oldname
+update Trustaff_Med.dbo.perm_commision_lookup set LookupValue =  @fullnamenew where LookupValue = @fullnameold
+update Trustaff_Med.dbo.perm_commision_lookup set LookupValue2 =  @newname where LookupValue2 = @oldname
+update Trustaff_Med.dbo.referencecheck set Conductor =  @newname where Conductor = @oldname
+update Trustaff_Med.dbo.submittal set SubmitBy =  @newname where SubmitBy = @oldname
+update Trustaff_Med.dbo.user_ip_addresses set Loginname =  @newname where Loginname = @oldname
+update Trustaff_Med.dbo.userlist set GM_Username =  @newname where GM_Username = @oldname
+update Trustaff_Med.dbo.userlist set Name  =  @fullnamenew where name = @fullnameold
+update Trustaff_Med.dbo.userlist set User_Email =  @emailnew where User_Email  = @emailold
+update wng2.dbo.ActMgr_Emails set AMEmail = @emailnew where AMEmail = @emailold
+update wng2.dbo.recruiter set EmailAddress = @emailnew where EmailAddress = @emailold
+update wng2.dbo.recruiter_emails set Rec_Email = @emailnewn where Rec_Email = @emailoldn
+update wng2.dbo.recruiter_emails set NA_Email = @emailnewn where NA_Email = @emailoldn
+update wng2.dbo.recruiter_emails set FE_Email = @emailnewn where FE_Email = @emailoldn
+update wng2.dbo.[USER] set WUNAME = @newnamev where WUNAME = @oldnamev

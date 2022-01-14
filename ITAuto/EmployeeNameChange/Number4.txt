@@ -1,0 +1,13 @@
+--If returns a match need to get Middle Initial 
+Select * from HR.dbo.Associate
+where Username =''
+
+--If returns a match need to get Middle Initial
+select * from Trustaff_Med.dbo.UserList 
+where GM_Username = ''
+
+--If returns a match need to get Middle Initial
+--And put it in the name.  This is for the Contracts
+--and buckets so that it does not get confused.
+select * from Trustaff_Med.dbo.UserList
+where Name= ''

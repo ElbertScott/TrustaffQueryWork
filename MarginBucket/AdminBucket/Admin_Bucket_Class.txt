@@ -1,0 +1,366 @@
+Imports System.Data.SqlClient
+Imports Microsoft.VisualBasic
+
+Public Class Admin_Bucket
+     Public TSMED As New SqlConnection(My.Resources.Trustaff_Med)
+    Public TSEsig As New SqlConnection(My.Resources.Esig)
+    Public TSWNG As New SqlConnection(My.Resources.WNG)
+    Public Structure bucketInfo
+        Public TeamID As Integer
+        Public TeamName As String
+        Public BucketRcord As DataTable
+        Public userID As Integer
+        Public FacilityId As Integer
+        Public MemberName As String
+    End Structure
+    Public Structure BucketRecordUpdate
+        Public PacketID As String
+        Public Status As Integer
+        Public StatusName As String
+        Public Notes As String
+        Public AdminID As Integer
+        Public CandidateID As Integer
+        Public FacilityID As Integer
+        Public Sqlstring As String
+        Public TravelerName As String
+        Public Facility As String
+        Public AccountManager As String
+        Public Rcruitername As String
+        Public Recipients As DataTable
+    End Structure
+
+    Public Function GetBocaBucket() As DataTable
+
+        Dim Dt As New DataTable
+        Try
+            Dim objCmd As New SqlCommand("USP_ADMINBUCKETBA ", TSMED)
+            Dim sda As New SqlDataAdapter(objCmd)
+            sda.SelectCommand.CommandType = CommandType.StoredProcedure
+            TSMED.Open()
+            sda.Fill(Dt)
+            TSMED.Close()
+            Select Case Dt.Rows.Count
+                Case 0
+                    GetBocaBucket = Nothing
+                Case Else
+                    GetBocaBucket = Dt
+            End Select
+        Catch ex As Exception
+            TSMED.Close()
+        End Try
+        Return Dt
+    End Function
+
+    Public Function GetBucketAll() As DataTable
+
+        Dim Dt As New DataTable
+        Try
+            Dim objCmd As New SqlCommand("USP_ADMINBUCKETCA ", TSMED)
+            Dim sda As New SqlDataAdapter(objCmd)
+            sda.SelectCommand.CommandType = CommandType.StoredProcedure
+            TSMED.Open()
+            sda.Fill(Dt)
+            TSMED.Close()
+            Select Case Dt.Rows.Count
+                Case 0
+                    GetBucketAll = Nothing
+                Case Else
+                    GetBucketAll = Dt
+            End Select
+        Catch ex As Exception
+            TSMED.Close()
+        End Try
+        Return Dt
+    End Function
+    Public Function GetBucketByTeam(TeamID As Integer) As DataTable
+
+        Dim Dt As New DataTable
+        Try
+            Dim objCmd As New SqlCommand("USP_ADMINBUCKETBYTEAM ", TSMED)
+            Dim sda As New SqlDataAdapter(objCmd)
+            sda.SelectCommand.CommandType = CommandType.StoredProcedure
+            sda.SelectCommand.Parameters.Add("@TeamID", SqlDbType.Int).Value = TeamID
+            TSMED.Open()
+            sda.Fill(Dt)
+            TSMED.Close()
+            Select Case Dt.Rows.Count
+                Case 0
+                    GetBucketByTeam = Nothing
+                Case Else
+                    GetBucketByTeam = Dt
+            End Select
+        Catch ex As Exception
+            TSMED.Close()
+        End Try
+        Return Dt
+    End Function
+    Public Function UpdateAdminBucketRecord(bucketRecord As BucketRecordUpdate) As Boolean
+        Try
+            With bucketRecord
+                Dim objCmd As New SqlCommand(.Sqlstring, TSMED)
+                TSMED.Open()
+                With objCmd
+                    .Parameters.AddWithValue("@status", CInt(bucketRecord.Status))
+                    .Parameters.AddWithValue("@Date", Now())
+                    .Parameters.AddWithValue("@notes", bucketRecord.Notes)
+                    .Parameters.AddWithValue("@packetid", CInt(bucketRecord.PacketID))
+                End With
+                objCmd.ExecuteNonQuery()
+                TSMED.Close()
+                Dim sqlinsert As String
+                sqlinsert = "Sp_insertAdminSubscount "
+                Dim objCmdinsert As New SqlCommand(sqlinsert, TSMED)
+                With objCmdinsert
+                    .CommandType = CommandType.StoredProcedure
+                    .Parameters.AddWithValue("@SubmittalID", CInt(bucketRecord.PacketID))
+                    .Parameters.AddWithValue("@CandidateID", bucketRecord.CandidateID)
+                    .Parameters.AddWithValue("@AdminRep", bucketRecord.AdminID)
+                End With
+                TSMED.Open()
+                objCmdinsert.ExecuteNonQuery()
+                TSMED.Close()
+                SendupdateMsg(bucketRecord)
+            End With
+            UpdateAdminBucketRecord = True
+
+        Catch ex As Exception
+            UpdateAdminBucketRecord = False
+            TSMED.Close()
+        End Try
+        Return UpdateAdminBucketRecord
+    End Function
+    Public Function SendupdateMsg(SendEmail As BucketRecordUpdate) As Boolean
+        With SendEmail
+            Dim Recipients As DataTable = New DataTable
+            Recipients.Columns.Add("Recipients")
+            Recipients = GetEmails(SendEmail.PacketID)
+            Dim MsgTitle As String = FormatSubmittalupdateMsgTitle(SendEmail)
+            Dim MsgBody As String = formatSubmittalMsgBody(SendEmail)
+            Dim RecString As String = ""
+            Dim Delim As Char = ChrW(44)
+
+
+            Dim Reclist As Array = RecString.Split(Delim)
+
+            Dim colValues As New List(Of Object)
+            'for loop
+            For Each row As DataRow In Recipients.Rows
+                colValues.Add(row("amemail"))
+                colValues.Add(row("Recruiteremail"))
+                colValues.Add(row("frontEndEmail"))
+            Next
+
+            For i As Integer = 0 To colValues.Count - 1
+                EmailHelper.SubmittalEmail(colValues(i), MsgTitle, MsgBody, True)
+            Next
+        End With
+        Return SendupdateMsg
+    End Function
+    Public Function GetEmails(SubmittalID As Integer) As DataTable
+        Dim result As String = ""
+        Dim sql As String = "SELECT (select User_Email from UserList where SUBSTRING(GM_Username,0,9)= Contact1.key4 ) as amemail, " &
+                            "(select User_Email from UserList where SUBSTRING(GM_Username, 0, 9) = c2.key4 ) As Recruiteremail, " &
+                            "ISNULL((select User_Email from UserList where SUBSTRING(GM_Username,0,9)= " &
+                            "((select U_GENER13 from CONTACT2 where ACCOUNTNO= c2.ACCOUNTNO ))),'ccherif@trustaff.com') as frontEndEmail " &
+                            "From " &
+                            "Contact1 " &
+                            "INNER JOIN FacPackets ON Facpackets.FacilityID = CONTACT1.id " &
+                            "INNER JOIN CONTACT1 c2 ON Facpackets.CandidateID = c2.id " &
+                            "WHERE FacPacketID =@SubmittalID "
+        Dim da As New SqlClient.SqlDataAdapter(sql, TSMED)
+        da.SelectCommand.Parameters.Add("@SubmittalID", SqlDbType.Int).Value = SubmittalID
+        Dim dt As New DataTable
+        Try
+            TSMED.Open()
+            da.Fill(dt)
+            TSMED.Close()
+
+            Select Case dt.Rows.Count
+                Case 0
+                    GetEmails = Nothing
+                Case 1
+                    GetEmails = dt
+            End Select
+        Catch ex As Exception
+            TSMED.Close()
+        End Try
+        Return dt
+    End Function
+    Public Function GetCandidateBySubmittalID(SubmittalID As Integer) As Integer
+        Try
+            Dim sql As String = "Select CandidateID FROM Facpackets WHERE FacpacketID =@SubmittalID "
+            Dim da As New SqlClient.SqlDataAdapter(sql, TSMED)
+            da.SelectCommand.Parameters.Add("@SubmittalID", SqlDbType.Int).Value = SubmittalID
+            Dim dt As New DataTable
+
+            TSMED.Open()
+            da.Fill(dt)
+            TSMED.Close()
+            Select Case dt.Rows.Count
+                Case 0
+                    GetCandidateBySubmittalID = 0
+                Case 1
+                    Dim row As DataRow = dt.Rows(0)
+                    GetCandidateBySubmittalID = row.Item("CandidateID")
+            End Select
+        Catch ex As Exception
+            TSMED.Close()
+        End Try
+        Return GetCandidateBySubmittalID
+
+    End Function
+
+    Public Function GetSuStatusSubmittalID(SubmittalID As Integer) As Integer
+        Try
+            Dim sql As String = "Select Submitstatus FROM Facpackets WHERE FacpacketID =@SubmittalID "
+            Dim da As New SqlClient.SqlDataAdapter(sql, TSMED)
+            da.SelectCommand.Parameters.Add("@SubmittalID", SqlDbType.Int).Value = SubmittalID
+            Dim dt As New DataTable
+            TSMED.Open()
+            da.Fill(dt)
+            TSMED.Close()
+            Select Case dt.Rows.Count
+                Case 0
+                    GetSuStatusSubmittalID = 0
+                Case 1
+                    Dim row As DataRow = dt.Rows(0)
+                    GetSuStatusSubmittalID = row.Field(Of Integer)("Submitstatus")
+            End Select
+        Catch ex As Exception
+            TSMED.Close()
+        End Try
+        Return GetSuStatusSubmittalID
+    End Function
+    Private Function FormatSubmittalupdateMsgTitle(submittalUpdate As BucketRecordUpdate) As String
+        Dim MsgTitle As String = ""
+
+        With submittalUpdate
+            MsgTitle = "A Submittal Packet Has Been Updated For " & submittalUpdate.TravelerName
+        End With
+        FormatSubmittalupdateMsgTitle = MsgTitle
+
+    End Function
+    Private Function formatSubmittalMsgBody(BucketUpdate As BucketRecordUpdate) As String
+        Dim msgbody As String = ""
+        With BucketUpdate
+            msgbody = "'<p><img src='http://www.trustaff.com/images/logo.gif' width='206' height='64' /></p><h1>A Submittal Packet Has Been Updated.</h1><p>Name: " & .TravelerName & "<br />Recruiter: " & .Rcruitername & "<br />Facility:" & .Facility & "<br />Status:" & .StatusName & "<br />Account Manager: " & .AccountManager & "<br />Notes: " & .Notes & "<br /></p>"
+        End With
+        formatSubmittalMsgBody = msgbody
+
+    End Function
+    Public Function GetHotJobStatus(SubmittalID As Integer) As Integer
+        Try
+            Dim sql As String = "Select ISNULL(fk_StatusID,0) as JobStatus from JobRequests " &
+                                "Inner Join FacPackets FP ON FP.RequestID = JobRequests.pk_JobRequestID WHERE FacpacketID =@SubmittalID "
+            Dim da As New SqlClient.SqlDataAdapter(sql, TSMED)
+            da.SelectCommand.Parameters.Add("@SubmittalID", SqlDbType.Int).Value = SubmittalID
+            Dim dt As New DataTable
+
+            TSMED.Open()
+            da.Fill(dt)
+            TSMED.Close()
+            Select Case dt.Rows.Count
+                Case 0
+                    GetHotJobStatus = 0
+                Case 1
+                    Dim row As DataRow = dt.Rows(0)
+                    GetHotJobStatus = row.Item("JobStatus")
+            End Select
+        Catch ex As Exception
+            TSMED.Close()
+        End Try
+        Return GetHotJobStatus
+
+    End Function
+    Public Function GetCandidateNameByCandidateID(CandidateID As Integer) As String
+        Dim Result As String = ""
+        Try
+            Dim sql As String = "Select CONTACT  FROM CONTACT1 WHERE id = @CandidateID"
+            Dim da As New SqlClient.SqlDataAdapter(sql, TSMED)
+            da.SelectCommand.Parameters.Add("@CandidateID", SqlDbType.Int).Value = CandidateID
+            Dim dt As New DataTable
+            TSMED.Open()
+            da.Fill(dt)
+            TSMED.Close()
+            Select Case dt.Rows.Count
+                Case 0
+                    GetCandidateNameByCandidateID = 0
+                Case 1
+                    Dim row As DataRow = dt.Rows(0)
+                    GetCandidateNameByCandidateID = row.Item("CONTACT")
+                    Result = GetCandidateNameByCandidateID
+            End Select
+        Catch ex As Exception
+            TSMED.Close()
+        End Try
+        Return Result
+    End Function
+    Public Function GetFacilityByFacilityID(FacilityID As Integer) As String
+        Dim Result As String = ""
+        Try
+            Dim sql As String = "Select Company  FROM CONTACT1 WHERE id = @FacilityID"
+            Dim da As New SqlClient.SqlDataAdapter(sql, TSMED)
+            da.SelectCommand.Parameters.Add("@FacilityID", SqlDbType.Int).Value = FacilityID
+            Dim dt As New DataTable
+            TSMED.Open()
+            da.Fill(dt)
+            TSMED.Close()
+            Select Case dt.Rows.Count
+                Case 0
+                    GetFacilityByFacilityID = String.Empty
+                Case 1
+                    Dim row As DataRow = dt.Rows(0)
+                    GetFacilityByFacilityID = row.Item("Company")
+                    Result = GetFacilityByFacilityID
+            End Select
+        Catch ex As Exception
+            TSMED.Close()
+        End Try
+        Return Result
+    End Function
+    Public Function GetFacilityIDBySubmittalID(SubmittalID As Integer) As Integer
+        Try
+            Dim sql As String = "Select FacilityID FROM Facpackets WHERE FacpacketID =@SubmittalID "
+            Dim da As New SqlClient.SqlDataAdapter(sql, TSMED)
+            da.SelectCommand.Parameters.Add("@SubmittalID", SqlDbType.Int).Value = SubmittalID
+            Dim dt As New DataTable
+
+            TSMED.Open()
+            da.Fill(dt)
+            TSMED.Close()
+            Select Case dt.Rows.Count
+                Case 0
+                    GetFacilityIDBySubmittalID = 0
+                Case 1
+                    Dim row As DataRow = dt.Rows(0)
+                    GetFacilityIDBySubmittalID = row.Item("FacilityID")
+            End Select
+        Catch ex As Exception
+            TSMED.Close()
+        End Try
+        Return GetFacilityIDBySubmittalID
+    End Function
+    Public Function GetRecruiterByCandidateID(CandidateID As Integer) As String
+        Dim result As String = ""
+        Try
+            Dim sql As String = "Select [Name] FROM Userlist INNER JOIN Contact1 C on C.key4 = SUBSTRING(GM_Username,0,9) WHERE C.ID = @CandidateID"
+            Dim da As New SqlClient.SqlDataAdapter(sql, TSMED)
+            da.SelectCommand.Parameters.Add("@CandidateID", SqlDbType.Int).Value = CandidateID
+            Dim dt As New DataTable
+            TSMED.Open()
+            da.Fill(dt)
+            TSMED.Close()
+            Select Case dt.Rows.Count
+                Case 0
+                    GetRecruiterByCandidateID = String.Empty
+                Case 1
+                    Dim row As DataRow = dt.Rows(0)
+                    GetRecruiterByCandidateID = row.Field(Of String)("Name")
+                    result = GetRecruiterByCandidateID
+            End Select
+        Catch ex As Exception
+            TSMED.Close()
+        End Try
+        Return result
+    End Function
+End Class
