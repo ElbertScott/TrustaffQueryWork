@@ -1,0 +1,49 @@
+USE Trustaff_Med
+
+select *
+from dbo.UserList
+where name in 
+(
+	'Cayley Foxworthy' --
+	,'Rylee Fournier' --
+	,'Jarek Hotwagner' --
+	,'Colleen Ainsley' --
+	,'Allison Del Puerto' --
+	,'Kelly McKenzie' --
+	,'Kirsten Grimes' --
+	,'Jeni Wixel' --
+	,'Seth Keese' --
+	,'Jacob Poteet' --
+	,'Edward Ainsley'  --
+)
+
+
+USE AppSecurity
+
+--All - MSPRecruiters
+
+select *
+from dbo.ADUserGroupList
+where UserName like 'Jennifer Zerhusen'
+
+--INSERT INTO [dbo].[ADUserGroupList]
+--	([SamAccountName],[UserName],[Email] ,[EmployeeID],[ADGroup],[DateRefreshed])
+--VALUES
+----	('jendres','Jennifer Zerhusen','jendres@trustaff.com',NULL,'All - MSPRecruiters',getdate())
+
+
+INSERT INTO [dbo].[ADUserGroupList]
+	([SamAccountName],[UserName],[Email] ,[EmployeeID],[ADGroup],[DateRefreshed])
+VALUES
+--	('jendres','Jennifer Zerhusen','jendres@trustaff.com',NULL,'All - MSPRecruiters',getdate())
+('EAINSLEY','Edward Ainsley','eainsley@trustaff.com',NULL,'Healthtrust - ONLYRecruiters',getdate()),
+('JPOTEET','Jacob Poteet','jpoteet@trustaff.com',NULL,'Healthtrust - ONLYRecruiters',getdate()),
+('JWIXEL','Jeni Wixel','jwixel@trustaff.com',NULL,'Healthtrust - ONLYRecruiters',getdate()),
+('SKEESE','Seth Keese','skeese@trustaff.com',NULL,'Healthtrust - ONLYRecruiters',getdate()),
+('KGRIMES','Kirsten Grimes','kgrimes@trustaff.com',NULL,'Healthtrust - ONLYRecruiters',getdate()),
+('ADELPUER','Allison del Puerto','adelpuerto@trustaff.com',NULL,'Healthtrust - ONLYRecruiters',getdate()),
+('KMCKENZI','Kelly McKenzie','kmckenzie@trustaff.com',NULL,'Healthtrust - ONLYRecruiters',getdate()),
+('CAINSLEY','Colleen Ainsley','cainsley@trustaff.com',NULL,'Healthtrust - ONLYRecruiters',getdate()),
+('RFOURNIE','Rylee Fournier','rfournier@trustaff.com',NULL,'Healthtrust - ONLYRecruiters',getdate()),
+('JHOTWAGN','Jarek Hotwagner','jhotwagner@trustaff.com',NULL,'Healthtrust - ONLYRecruiters',getdate()),
+('CFOXWORT','Cayley Foxworthy','cfoxworthy@trustaff.com',NULL,'Healthtrust - ONLYRecruiters',getdate())
