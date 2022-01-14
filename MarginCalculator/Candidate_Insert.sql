@@ -1,0 +1,131 @@
+USE MarginCalculator
+
+--Carole Witt
+--Alyssa Brito
+--Maria Bello
+
+select *
+from dbo.Candidates
+where CandidateLastName = 'Bello'
+order by CandidateFirstName
+
+--INSERT INTO DBO.Candidates
+--		([CandidateGoldMineID]
+--				,[CandidateERecruitID]
+--				,[CandidateFirstName]
+--				,[CandidateLastName]
+--				,[CandidateAddress]
+--				,[CandidateCity]
+--				,[CandidateState]
+--				,[CandidateZip]
+--				,[CandidateEmail]
+--				,[CandidatePhone]
+--				,[CandidateNotes]
+--				,[CandidateIsActive]
+--				,[IsCandidateDNU]
+--				,[CandidateFullName]
+--				,[CandidateCreateDate]
+--				,[CandidateCreateBy]
+--				,[CandidateUpdateDate]
+--				,[CandidateUpdateBy]
+--				,[CandidateStatus])
+--		VALUES(17705355
+--				,64432
+--				,'CAROLE' 
+--				,'WITT'
+--				,NULL
+--				,'Memphis'
+--				,'TN'
+--				,NULL
+--				,'justcw@gmail.com'
+--				,'(901)626-4042'
+--				,NULL
+--				,1
+--				,0
+--				,CONCAT('CAROLE', ' ','WITT')
+--				,GETDATE()
+--				,SYSTEM_USER
+--				,GETDATE()
+--				,SYSTEM_USER
+--				,'GM')
+
+--INSERT INTO DBO.Candidates
+--		([CandidateGoldMineID]
+--				,[CandidateERecruitID]
+--				,[CandidateFirstName]
+--				,[CandidateLastName]
+--				,[CandidateAddress]
+--				,[CandidateCity]
+--				,[CandidateState]
+--				,[CandidateZip]
+--				,[CandidateEmail]
+--				,[CandidatePhone]
+--				,[CandidateNotes]
+--				,[CandidateIsActive]
+--				,[IsCandidateDNU]
+--				,[CandidateFullName]
+--				,[CandidateCreateDate]
+--				,[CandidateCreateBy]
+--				,[CandidateUpdateDate]
+--				,[CandidateUpdateBy]
+--				,[CandidateStatus])
+--		VALUES(17706101
+--				,64607
+--				,'Alyssa' 
+--				,'Brito'
+--				,'280 NE 150th ave'
+--				,'Williston'
+--				,'FL'
+--				,'32696'
+--				,'albrito.rn@gmail.com'
+--				,'(774)263-4422'
+--				,NULL
+--				,1
+--				,0
+--				,CONCAT('Alyssa', ' ','Brito')
+--				,GETDATE()
+--				,SYSTEM_USER
+--				,GETDATE()
+--				,SYSTEM_USER
+--				,'GM')
+
+
+--INSERT INTO DBO.Candidates
+--		([CandidateGoldMineID]
+--				,[CandidateERecruitID]
+--				,[CandidateFirstName]
+--				,[CandidateLastName]
+--				,[CandidateAddress]
+--				,[CandidateCity]
+--				,[CandidateState]
+--				,[CandidateZip]
+--				,[CandidateEmail]
+--				,[CandidatePhone]
+--				,[CandidateNotes]
+--				,[CandidateIsActive]
+--				,[IsCandidateDNU]
+--				,[CandidateFullName]
+--				,[CandidateCreateDate]
+--				,[CandidateCreateBy]
+--				,[CandidateUpdateDate]
+--				,[CandidateUpdateBy]
+--				,[CandidateStatus])
+--		VALUES(17706410
+--				,64717
+--				,'Maria' 
+--				,'Bello'
+--				,'734 N Gary Ave'
+--				,'Carol Stream'
+--				,'IL'
+--				,'60188'
+--				,'mariabello1895@gmail.com'
+--				,'(630)624-6149'
+--				,NULL
+--				,1
+--				,0
+--				,CONCAT('Maria', ' ','Bello')
+--				,GETDATE()
+--				,SYSTEM_USER
+--				,GETDATE()
+--				,SYSTEM_USER
+--				,'GM')
